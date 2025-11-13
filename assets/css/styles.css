@@ -1,0 +1,74 @@
+/* assets/css/styles.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* === COLORES PERSONALIZADOS === */
+:root {
+  --primary: #607AFB;
+  --background-light: #f5f6f8;
+  --background-dark: #0f1323;
+  --surface-light: #FFFFFF;
+  --surface-dark: #2D3748;
+  --text-light: #1A202C;
+  --text-dark: #EDF2F7;
+  --secondary-light: #E2E8F0;
+  --secondary-dark: #4A5568;
+}
+
+.dark {
+  --background: var(--background-dark);
+  --surface: var(--surface-dark);
+  --text: var(--text-dark);
+  --secondary: var(--secondary-dark);
+}
+.light {
+  --background: var(--background-light);
+  --surface: var(--surface-light);
+  --text: var(--text-light);
+  --secondary: var(--secondary-light);
+}
+
+/* === ESTILOS GLOBALES === */
+body {
+  @apply bg-[var(--background)] text-[var(--text)] transition-colors duration-300;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Clases reutilizables */
+.bg-surface { @apply bg-[var(--surface)]; }
+.bg-secondary { @apply bg-[var(--secondary)]; }
+.text-primary { color: var(--primary); }
+
+/* Navegación activa */
+.nav-item.active {
+  @apply bg-primary text-white font-semibold;
+}
+
+/* MARKDOWN PERFECTO EN CHAT */
+.prose {
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+.prose strong {
+  font-weight: 600;
+  color: inherit;
+}
+.prose em {
+  font-style: italic;
+}
+.prose ul, .prose ol {
+  padding-left: 1.2rem;
+  margin: 0.25rem 0;
+}
+.prose li {
+  margin: 0.15rem 0;
+}
+.prose p {
+  margin: 0.3rem 0;
+}
+
+/* Asegurar que sidebar no se corte */
+#sidebar {
+  min-height: 100vh;
+}

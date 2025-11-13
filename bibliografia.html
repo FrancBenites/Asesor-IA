@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bibliografía - Asesor Tesis UPAO</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/marked@4.0.12/marked.min.js"></script>
+</head>
+
+<body data-page="bibliografia" class="h-full bg-[var(--background)] text-[var(--text)] flex">
+  <div id="sidebar"></div>
+
+  <main class="flex-1 p-8 overflow-y-auto min-h-full">
+    <h1 class="text-3xl font-bold mb-6">Bibliografía</h1>
+
+    <div class="bg-[var(--surface)] rounded-lg p-6 shadow-md mb-6">
+      <h2 class="text-xl font-semibold mb-4">Agregar Referencia (APA)</h2>
+      <textarea id="raw-citation" class="w-full p-3 rounded border border-[var(--secondary)] bg-[var(--background)]" rows="3" placeholder="Ej: García, J. (2023). Inteligencia artificial en educación. Editorial UPAO."></textarea>
+      <button id="add-citation" class="mt-3 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Agregar</button>
+    </div>
+
+    <div class="bg-[var(--surface)] rounded-lg p-6 shadow-md">
+      <h2 class="text-xl font-semibold mb-4">Referencias Guardadas</h2>
+      <div id="references-list" class="space-y-3 prose dark:prose-invert max-w-none"></div>
+    </div>
+  </main>
+
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/main.js" defer></script>
+</body>
+
+</html>
