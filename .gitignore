@@ -1,2 +1,5 @@
-# Ignorar archivo con claves sensibles
-config.js
+node_modules
+.env
+.DS_Store
+dist
+*.log

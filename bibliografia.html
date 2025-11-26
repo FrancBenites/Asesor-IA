@@ -1,36 +1,81 @@
 <!DOCTYPE html>
-<html lang="es" class="h-full">
+<html lang="es" class="light" data-page="bibliografia">
 
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Bibliografía - Asesor Tesis UPAO</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' };
+  </script>
+
   <link rel="stylesheet" href="assets/css/styles.css" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/marked@4.0.12/marked.min.js"></script>
 </head>
 
-<body data-page="bibliografia" class="h-full bg-[var(--background)] text-[var(--text)] flex">
-  <div id="sidebar"></div>
+<body class="bg-[var(--background)] text-[var(--text)]" data-page="bibliografia">
+  <div class="flex h-screen">
+    <!-- Sidebar Container -->
+    <div id="sidebar"></div>
 
-  <main class="flex-1 p-8 overflow-y-auto min-h-full">
-    <h1 class="text-3xl font-bold mb-6">Bibliografía</h1>
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col p-6 overflow-hidden">
+      <div class="flex-1 bg-[var(--surface)] rounded-lg p-8 shadow-md overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+          <h1 class="text-3xl font-bold text-[var(--text)]">Bibliografía APA</h1>
+          <button id="export-bibliography-btn"
+            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium shadow-md flex items-center gap-2">
+            <span class="material-icons text-sm">download</span> Exportar APA
+          </button>
+        </div>
 
-    <div class="bg-[var(--surface)] rounded-lg p-6 shadow-md mb-6">
-      <h2 class="text-xl font-semibold mb-4">Agregar Referencia (APA)</h2>
-      <textarea id="raw-citation" class="w-full p-3 rounded border border-[var(--secondary)] bg-[var(--background)]" rows="3" placeholder="Ej: García, J. (2023). Inteligencia artificial en educación. Editorial UPAO."></textarea>
-      <button id="add-citation" class="mt-3 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Agregar</button>
-    </div>
+        <!-- Formulario Agregar -->
+        <div class="bg-[var(--background)] border border-[var(--border)] rounded-xl p-6 mb-8 shadow-sm">
+          <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+            <span class="material-icons text-[var(--primary)]">add_circle</span>
+            Agregar Referencia
+          </h2>
+          <textarea id="raw-citation"
+            class="w-full p-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all"
+            rows="3"
+            placeholder="Ej: García, J. (2023). Inteligencia artificial en educación. Editorial UPAO."></textarea>
+          <div class="mt-4 flex justify-end">
+            <button id="add-citation"
+              class="px-6 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-opacity-90 transition-all font-medium shadow-md flex items-center gap-2">
+              <span class="material-icons text-sm">save</span> Guardar Referencia
+            </button>
+          </div>
+        </div>
 
-    <div class="bg-[var(--surface)] rounded-lg p-6 shadow-md">
-      <h2 class="text-xl font-semibold mb-4">Referencias Guardadas</h2>
-      <div id="references-list" class="space-y-3 prose dark:prose-invert max-w-none"></div>
-    </div>
-  </main>
+        <!-- Lista de Referencias Usadas en Documento -->
+        <div class="mb-8">
+          <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+            <span class="material-icons text-green-600">check_circle</span>
+            Referencias Usadas en Documento
+          </h2>
+          <div id="used-references-list" class="space-y-3">
+            <p class="text-[var(--text-secondary)] text-sm italic">No hay referencias usadas en el documento actual.</p>
+          </div>
+        </div>
+        <!-- Lista de Referencias Sin Usar -->
+        <div class="space-y-4">
+          <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+            <span class="material-icons text-[var(--primary)]">library_books</span>
+            Referencias Guardadas (Sin usar)
+          </h2>
+          <div id="unused-references-list" class="space-y-3">
+            <p class="text-[var(--text-secondary)] text-sm italic">No hay referencias guardadas.</p>
+          </div>
+        </div>
 
-  <script src="assets/js/config.js"></script>
-  <script src="assets/js/main.js" defer></script>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="assets/js/main.js"></script>
 </body>
 
 </html>
