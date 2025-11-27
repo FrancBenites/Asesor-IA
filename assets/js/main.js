@@ -240,10 +240,11 @@ class App {
   static async callLangflowAgent(agentType, query, context = '') {
     const API_KEY = import.meta.env.VITE_LANGFLOW_API_KEY;
 
+    const BASE_URL = "https://unwillful-france-unyouthful.ngrok-free.dev"; // <--- Poner aquí la URL de Ngrok
     const AGENT_URLS = {
-      estructura: "http://localhost:7860/api/v1/run/6e2da7d9-13d0-40eb-b4f1-b605de6d0253",
-      redaccion: "http://localhost:7860/api/v1/run/7514afd6-fef8-4fb9-82e2-431f818217d4",
-      citas: "http://localhost:7860/api/v1/run/6c816e03-1803-40a5-a7fe-03078cec9aa9"
+      estructura: `${BASE_URL}/api/v1/run/6e2da7d9-13d0-40eb-b4f1-b605de6d0253`,
+      redaccion: `${BASE_URL}/api/v1/run/7514afd6-fef8-4fb9-82e2-431f818217d4`,
+      citas: `${BASE_URL}/api/v1/run/6c816e03-1803-40a5-a7fe-03078cec9aa9`
     };
 
     const url = AGENT_URLS[agentType];
