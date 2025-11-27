@@ -1,5 +1,6 @@
 // assets/js/main.js
 import { supabase } from './supabaseClient.js'
+import sidebarHtml from '../../components/sidebar.html?raw'
 
 class App {
   static async init() { // Añadir async aquí
@@ -25,17 +26,16 @@ class App {
   }
 
   static loadSidebar() {
-    fetch('components/sidebar.html')
-      .then(r => r.text())
-      .then(html => {
-        document.getElementById('sidebar').innerHTML = html;
-        this.highlightCurrentPage();
-        this.setupThemeToggle();
-        this.initSidebarToggle();
-        this.initLogout();
-        this.updateUserInfo();
-      })
-      .catch(err => console.error('Error loading sidebar:', err));
+    // Usamos el HTML importado directamente (más rápido y compatible con Vercel)
+    const sidebarContainer = document.getElementById('sidebar');
+    if (sidebarContainer) {
+      sidebarContainer.innerHTML = sidebarHtml;
+      this.highlightCurrentPage();
+      this.setupThemeToggle();
+      this.initSidebarToggle();
+      this.initLogout();
+      this.updateUserInfo();
+    }
   }
 
   // Inicializar botón de logout
@@ -160,7 +160,6 @@ class App {
     }
   }
 
-  // INICIAR EL CHAT
   // INICIAR EL CHAT con selección de agente
   static initChat() {
     const checkElements = setInterval(() => {
@@ -174,6 +173,11 @@ class App {
         const handleSend = async () => {
           const query = input.value.trim();
           if (!query) return;
+
+          // === NUEVO: Bloquear input y botón ===
+          input.disabled = true;
+          sendButton.disabled = true;
+          sendButton.classList.add('opacity-50', 'cursor-not-allowed');
 
           const selectedAgent = agentSelector.value;
 
@@ -213,6 +217,14 @@ class App {
             const loadingMsg = chatMessages[chatMessages.length - 1];
             chatContainer.removeChild(loadingMsg);
             this.addChatMessage(`❌ Error: ${error.message}`, false);
+          } finally {
+            // <--- AÑADE DESDE AQUÍ
+            // === NUEVO: Desbloquear siempre al terminar ===
+            input.disabled = false;
+            sendButton.disabled = false;
+            sendButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            input.focus(); // Devolver el foco al input
+            // ==============================================
           }
         };
 
@@ -381,6 +393,23 @@ class App {
     }
   }
 
+  // NUEVO: Mostrar notificación Toast
+  static showToast(message, type = 'info') {
+    let bg = "#333"; // Default
+    if (type === 'success') bg = "linear-gradient(to right, #00b09b, #96c93d)";
+    if (type === 'error') bg = "linear-gradient(to right, #ff5f6d, #ffc371)";
+    if (type === 'warning') bg = "linear-gradient(to right, #f7b733, #fc4a1a)";
+    Toastify({
+      text: message,
+      duration: 3000,
+      close: true,
+      gravity: "top", // `top` or `bottom`
+      position: "right", // `left`, `center` or `right`
+      stopOnFocus: true, // Prevents dismissing of toast on hover
+      style: { background: bg },
+    }).showToast();
+  }
+
   // Añadir mensaje colapsable al chat
   static addCollapsibleMessage(title, content, icon = '📊') {
     const chatContainer = document.querySelector('.flex-1.space-y-4');
@@ -448,7 +477,7 @@ class App {
 
     // Función de guardado
     const saveToSupabase = async () => {
-      console.log('💾 Guardando en Supabase...');
+      this.showToast('Documento guardado automáticamente', 'success');
       const currentTitle = docNameInput ? docNameInput.value : 'Sin título';
 
       await supabase
@@ -521,6 +550,7 @@ class App {
         analyzeBtn.disabled = false;
         analyzeBtn.innerHTML = '<span class="material-icons">auto_awesome</span> Analizar con IA';
       }
+      this.showToast(`Documento "${file.name}" cargado correctamente`, 'success');
     });
   }
 
@@ -619,9 +649,11 @@ class App {
 
     if (error) {
       console.error('Error guardando referencia:', error);
+      this.showToast('Error al guardar referencia', 'error');
     } else {
       // Recargar lista
       this.initBibliography();
+      this.showToast('Referencia guardada correctamente', 'success');
     }
   }
 
@@ -1061,73 +1093,107 @@ class App {
     });
   }
 
-  // NUEVO: Generar Informe PDF
+  // NUEVO: Generar Informe PDF Mejorado
   static initPDFGeneration() {
     const pdfBtn = document.getElementById('generate-pdf');
     if (!pdfBtn) return;
-
     pdfBtn.addEventListener('click', async () => {
       pdfBtn.disabled = true;
       pdfBtn.innerHTML = '<span class="material-icons">hourglass_empty</span> Generando...';
-
       // === RECOPILAR DATOS ===
       const editor = document.getElementById('thesis-editor');
-      const docText = editor.innerText;
+      const docText = editor.innerText; // Texto plano para conteo
+      const docHtml = editor.innerHTML; // HTML para formato
       const docName = document.getElementById('doc-name').value;
-      const bibliografia = JSON.parse(localStorage.getItem('bibliografia') || '[]');
 
+      // Obtener bibliografía desde Supabase (o caché local si prefieres rapidez)
+      // Por simplicidad usaremos lo que esté en memoria o una llamada rápida
+      const { data: { user } } = await supabase.auth.getUser();
+      let bibliografia = [];
+      if (user) {
+        const { data } = await supabase.from('references').select('*').eq('user_id', user.id);
+        if (data) bibliografia = data;
+      }
+      // Capturar análisis del chat (buscando los bloques colapsables)
+      const chatContainer = document.querySelector('.flex-1.space-y-4');
+      const analysisBlocks = Array.from(chatContainer.querySelectorAll('details')).map(detail => {
+        const summary = detail.querySelector('summary').innerText;
+        const content = detail.querySelector('.prose').innerHTML;
+        return { title: summary, content: content };
+      });
       // === CREAR CONTENIDO HTML PARA PDF ===
       const reportHTML = `
-        <div style="font-family: Arial, sans-serif; padding: 2rem; color: #000;">
-          <h1 style="text-align: center; color: #1e40af;">Informe de Tesis - Asesor IA UPAO</h1>
-          <hr style="margin: 1rem 0;">
-          <h2>📄 Documento: ${docName}</h2>
-          <p><strong>Palabras:</strong> ${docText.split(' ').length}</p>
-          <h3>📝 Contenido Actual</h3>
-          <div style="background: #f3f4f6; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
-            ${docText.replace(/\n/g, '<br>')}
+        <div style="font-family: 'Helvetica', 'Arial', sans-serif; padding: 40px; color: #333; line-height: 1.6;">
+          
+          <!-- PORTADA -->
+          <div style="text-align: center; margin-bottom: 50px; border-bottom: 2px solid #4f46e5; padding-bottom: 20px;">
+            <h1 style="color: #1e40af; font-size: 28px; margin-bottom: 10px;">Informe de Asesoría de Tesis</h1>
+            <p style="color: #6b7280; font-size: 14px;">Generado por Asesor IA UPAO</p>
+            <h2 style="margin-top: 30px; font-size: 20px;">📄 ${docName}</h2>
+            <p style="font-size: 12px; color: #9ca3af;">${new Date().toLocaleDateString('es-PE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
           </div>
-
-          <h3>🤖 Análisis de los 3 Agentes IA</h3>
-          <div style="margin: 1rem 0;">
-            <h4>🧱 Agente Estructura</h4>
-            <p><em>Verifica introducción, objetivos, justificación...</em></p>
-            <h4>✍️ Agente Redacción</h4>
-            <p><em>Corrige gramática, estilo y coherencia...</em></p>
-            <h4>📚 Agente Citas</h4>
-            <p><em>Verifica formato APA y coincidencias con bibliografía...</em></p>
+          <!-- RESUMEN -->
+          <div style="background: #f3f4f6; padding: 20px; border-radius: 10px; margin-bottom: 30px;">
+            <h3 style="color: #111827; margin-top: 0;">📊 Estadísticas del Documento</h3>
+            <p><strong>Total de Palabras:</strong> ${docText.split(/\s+/).filter(w => w.length > 0).length}</p>
+            <p><strong>Referencias Detectadas:</strong> ${bibliografia.length}</p>
           </div>
-
-          <h3>📖 Bibliografía (${bibliografia.length} referencias)</h3>
-          <ul style="list-style: disc; padding-left: 1.5rem;">
-            ${bibliografia.map(b => `<li><strong>${b.autor}, ${b.inicial}. (${b.año}).</strong> <em>${b.titulo}</em>. ${b.editorial}.</li>`).join('')}
-          </ul>
-
-          <footer style="margin-top: 3rem; text-align: center; color: #666; font-size: 0.8rem;">
-            Generado por <strong>Asesor Virtual de Tesis UPAO</strong> | ${new Date().toLocaleDateString('es-PE')}
+          <!-- ANÁLISIS DE AGENTES -->
+          <h3 style="color: #4f46e5; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-top: 40px;">🤖 Análisis de Inteligencia Artificial</h3>
+          
+          ${analysisBlocks.length > 0 ? analysisBlocks.map(block => `
+            <div style="margin-bottom: 25px;">
+              <h4 style="color: #374151; background: #e0e7ff; padding: 8px 12px; border-radius: 6px; display: inline-block;">${block.title}</h4>
+              <div style="font-size: 14px; text-align: justify; margin-top: 10px; padding-left: 10px; border-left: 3px solid #c7d2fe;">
+                ${block.content}
+              </div>
+            </div>
+          `).join('') : '<p style="font-style: italic; color: #6b7280;">No se ha realizado un análisis reciente en esta sesión.</p>'}
+          <!-- BIBLIOGRAFÍA -->
+          <div style="page-break-before: always;"></div>
+          <h3 style="color: #4f46e5; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px;">📖 Bibliografía Guardada</h3>
+          
+          ${bibliografia.length > 0 ? `
+            <ul style="list-style: none; padding: 0;">
+              ${bibliografia.map(b => `
+                <li style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px dashed #e5e7eb;">
+                  <div style="font-weight: bold; color: #1f2937;">${b.author} (${b.year})</div>
+                  <div style="font-style: italic; color: #4b5563;">${b.title}</div>
+                  ${b.source ? `<div style="font-size: 12px; color: #6b7280;">Fuente: ${b.source}</div>` : ''}
+                </li>
+              `).join('')}
+            </ul>
+          ` : '<p style="font-style: italic; color: #6b7280;">No hay referencias guardadas en la base de datos.</p>'}
+          <!-- FOOTER -->
+          <footer style="margin-top: 50px; text-align: center; color: #9ca3af; font-size: 10px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+            Este informe es una ayuda generada por IA y debe ser revisado por el estudiante y su asesor humano.
           </footer>
         </div>
       `;
-
       // === GENERAR PDF ===
       const element = document.createElement('div');
       element.innerHTML = reportHTML;
       document.body.appendChild(element);
-
       const opt = {
-        margin: 1,
-        filename: `Informe_Tesis_${docName.replace(/[^a-z0-9]/gi, '_')}.pdf`,
+        margin: [1, 1, 1, 1], // Márgenes de 1cm
+        filename: `Informe_AsesorIA_${docName.replace(/[^a-z0-9]/gi, '_')}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
+        html2canvas: { scale: 2, useCORS: true },
         jsPDF: { unit: 'cm', format: 'a4', orientation: 'portrait' }
       };
-
-      await html2pdf().set(opt).from(element).save();
-      document.body.removeChild(element);
-
-      pdfBtn.disabled = false;
-      pdfBtn.innerHTML = '<span class="material-icons">picture_as_pdf</span> Generar Informe PDF';
-      this.addChatMessage('**Informe PDF generado y descargado.**', false);
+      try {
+        await html2pdf().set(opt).from(element).save();
+        this.showToast('Informe PDF descargado', 'success');
+        this.addChatMessage('**✅ Informe PDF generado y descargado correctamente.**', false);
+      } catch (err) {
+        console.error('Error generando PDF:', err);
+        this.showToast('Error al generar PDF', 'error');
+        this.addChatMessage('❌ Error al generar el PDF. Intenta de nuevo.', false);
+      } finally {
+        document.body.removeChild(element);
+        pdfBtn.disabled = false;
+        pdfBtn.innerHTML = '<span class="material-icons">picture_as_pdf</span> Generar Informe PDF';
+      }
     });
   }
 }

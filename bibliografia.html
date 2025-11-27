@@ -13,10 +13,11 @@
 
   <link rel="stylesheet" href="assets/css/styles.css" />
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/marked@4.0.12/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@4.0.12/marked.min.js">  </script>
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
 </head>
 
-<body class="bg-[var(--background)] text-[var(--text)]" data-page="bibliografia">
+<body class="bg-[var(--background)] text-[var(--text)]">
   <div class="flex h-screen">
     <!-- Sidebar Container -->
     <div id="sidebar"></div>
@@ -24,13 +25,7 @@
     <!-- Main Content -->
     <main class="flex-1 flex flex-col p-6 overflow-hidden">
       <div class="flex-1 bg-[var(--surface)] rounded-lg p-8 shadow-md overflow-y-auto">
-        <div class="flex justify-between items-center mb-6">
-          <h1 class="text-3xl font-bold text-[var(--text)]">Bibliografía APA</h1>
-          <button id="export-bibliography-btn"
-            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium shadow-md flex items-center gap-2">
-            <span class="material-icons text-sm">download</span> Exportar APA
-          </button>
-        </div>
+        <h1 class="text-3xl font-bold mb-6 text-[var(--text)]">Bibliografía APA</h1>
 
         <!-- Formulario Agregar -->
         <div class="bg-[var(--background)] border border-[var(--border)] rounded-xl p-6 mb-8 shadow-sm">
@@ -38,7 +33,7 @@
             <span class="material-icons text-[var(--primary)]">add_circle</span>
             Agregar Referencia
           </h2>
-          <textarea id="raw-citation"
+          <textarea id="citation-text"
             class="w-full p-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent transition-all"
             rows="3"
             placeholder="Ej: García, J. (2023). Inteligencia artificial en educación. Editorial UPAO."></textarea>
@@ -50,31 +45,20 @@
           </div>
         </div>
 
-        <!-- Lista de Referencias Usadas en Documento -->
-        <div class="mb-8">
-          <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-            <span class="material-icons text-green-600">check_circle</span>
-            Referencias Usadas en Documento
-          </h2>
-          <div id="used-references-list" class="space-y-3">
-            <p class="text-[var(--text-secondary)] text-sm italic">No hay referencias usadas en el documento actual.</p>
-          </div>
-        </div>
-        <!-- Lista de Referencias Sin Usar -->
+        <!-- Lista de Referencias -->
         <div class="space-y-4">
           <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
             <span class="material-icons text-[var(--primary)]">library_books</span>
-            Referencias Guardadas (Sin usar)
+            Referencias Guardadas
           </h2>
-          <div id="unused-references-list" class="space-y-3">
-            <p class="text-[var(--text-secondary)] text-sm italic">No hay referencias guardadas.</p>
+          <div id="references-list" class="space-y-3">
+            <!-- Las referencias se inyectan aquí vía JS -->
           </div>
         </div>
-
       </div>
     </main>
   </div>
-
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
   <script type="module" src="assets/js/main.js"></script>
 </body>
 
