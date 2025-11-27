@@ -321,34 +321,51 @@ class App {
         this.addChatMessage('Por favor, escribe al menos 50 caracteres para analizar.', false);
         return;
       }
-
+      // 1. BLOQUEAR INTERFAZ (Botón Analizar + Chat)
       analyzeBtn.disabled = true;
       analyzeBtn.innerHTML = '<span class="material-icons">hourglass_empty</span> 3 Agentes analizando...';
-
-      // === CARGAR BIBLIOGRAFÍA ===
-      const bibliografia = JSON.parse(localStorage.getItem('bibliografia') || '[]');
-      const bibContext = bibliografia.length > 0
-        ? `BIBLIOGRAFÍA GUARDADA:\n${bibliografia.map(b => `- ${b.autor} (${b.año}). ${b.titulo}`).join('\n')}`
-        : 'No hay referencias guardadas en la bibliografía';
-
-      // 1. AGENTE ESTRUCTURA (igual que chat manual)
-      this.addChatMessage('**Agente Estructura** activado...', false);
-      const estructura = await this.callLangflowAgent('estructura', text);
-      this.addCollapsibleMessage('Análisis de Estructura', estructura, '📊');
-
-      // 2. AGENTE REDACCIÓN (igual que chat manual)
-      this.addChatMessage('**Agente Redacción** activado...', false);
-      const redaccion = await this.callLangflowAgent('redaccion', text);
-      this.addCollapsibleMessage('Análisis de Redacción', redaccion, '✍️');
-
-      // 3. AGENTE CITAS (igual que chat manual, con contexto de bibliografía)
-      this.addChatMessage('**Agente Citas** activado...', false);
-      const citas = await this.callLangflowAgent('citas', text, bibContext);
-      this.addCollapsibleMessage('Análisis de Citas', citas, '📚');
-
-      // Final
-      this.addChatMessage('**Análisis completo.** si quieres que profundice en algo, selecciona el agente correspondiente.', false);
-      analyzeBtn.innerHTML = '<span class="material-icons">smart_toy</span> Analizar con 3 Agentes IA';
+      const chatInput = document.getElementById('chat-input');
+      const chatSendBtn = document.getElementById('chat-send-btn');
+      if (chatInput) chatInput.disabled = true;
+      if (chatSendBtn) {
+        chatSendBtn.disabled = true;
+        chatSendBtn.classList.add('opacity-50', 'cursor-not-allowed');
+      }
+      try {
+        // === CARGAR BIBLIOGRAFÍA ===
+        const bibliografia = JSON.parse(localStorage.getItem('bibliografia') || '[]');
+        const bibContext = bibliografia.length > 0
+          ? `BIBLIOGRAFÍA GUARDADA:\n${bibliografia.map(b => `- ${b.autor} (${b.año}). ${b.titulo}`).join('\n')}`
+          : 'No hay referencias guardadas en la bibliografía';
+        // 1. AGENTE ESTRUCTURA
+        this.addChatMessage('**Agente Estructura** activado...', false);
+        const estructura = await this.callLangflowAgent('estructura', text);
+        this.addCollapsibleMessage('Análisis de Estructura', estructura, '📊');
+        // 2. AGENTE REDACCIÓN
+        this.addChatMessage('**Agente Redacción** activado...', false);
+        const redaccion = await this.callLangflowAgent('redaccion', text);
+        this.addCollapsibleMessage('Análisis de Redacción', redaccion, '✍️');
+        // 3. AGENTE CITAS
+        this.addChatMessage('**Agente Citas** activado...', false);
+        const citas = await this.callLangflowAgent('citas', text, bibContext);
+        this.addCollapsibleMessage('Análisis de Citas', citas, '📚');
+        this.addChatMessage('**Análisis completo.** si quieres que profundice en algo, selecciona el agente correspondiente.', false);
+      } catch (error) {
+        console.error('Error en análisis:', error);
+        this.addChatMessage('Ocurrió un error durante el análisis. Por favor intenta de nuevo.', false);
+      } finally {
+        // 2. DESBLOQUEAR INTERFAZ
+        analyzeBtn.disabled = false; // <--- Importante: Reactivar botón analizar
+        analyzeBtn.innerHTML = '<span class="material-icons">smart_toy</span> Analizar con 3 Agentes IA';
+        if (chatInput) {
+          chatInput.disabled = false;
+          chatInput.focus();
+        }
+        if (chatSendBtn) {
+          chatSendBtn.disabled = false;
+          chatSendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+      }
     });
   }
 
