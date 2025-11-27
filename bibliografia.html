@@ -46,13 +46,27 @@
         </div>
 
         <!-- Lista de Referencias -->
-        <div class="space-y-4">
-          <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-            <span class="material-icons text-[var(--primary)]">library_books</span>
-            Referencias Guardadas
-          </h2>
-          <div id="references-list" class="space-y-3">
-            <!-- Las referencias se inyectan aquí vía JS -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+          <!-- Columna 1: Usadas en el Documento -->
+          <div class="space-y-4">
+            <h2 class="text-lg font-semibold mb-4 flex items-center gap-2 text-green-600 dark:text-green-400">
+              <span class="material-icons">check_circle</span>
+              Referencias Usadas en Documento
+            </h2>
+            <div id="used-references-list" class="space-y-3 min-h-[100px]">
+              <!-- Se llena con JS -->
+            </div>
+          </div>
+          <!-- Columna 2: Guardadas (Sin usar) -->
+          <div class="space-y-4">
+            <h2 class="text-lg font-semibold mb-4 flex items-center gap-2 text-blue-600 dark:text-blue-400">
+              <span class="material-icons">bookmark</span>
+              Referencias Guardadas (Sin usar)
+            </h2>
+            <div id="unused-references-list" class="space-y-3 min-h-[100px]">
+              <!-- Se llena con JS -->
+            </div>
           </div>
         </div>
       </div>
