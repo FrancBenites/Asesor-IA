@@ -363,6 +363,9 @@ class App {
         const citas = await this.callLangflowAgent('citas', text, bibContext);
         this.addCollapsibleMessage('Análisis de Citas', citas, '📚');
 
+        // === NUEVO: Extraer citas sugeridas ===
+        await this.extractAgentCitations(citas);
+
         this.addChatMessage('**Análisis completo.** Selecciona un agente para ver detalles.', false);
 
       } catch (error) {
@@ -695,6 +698,12 @@ class App {
     // Render both lists
     this.renderReferences(usedRefs, usedList, true);
     this.renderReferences(unusedRefs, unusedList, false);
+
+    // === NUEVO: Actualizar contadores ===
+    const usedCountEl = document.getElementById('used-count');
+    const unusedCountEl = document.getElementById('unused-count');
+    if (usedCountEl) usedCountEl.textContent = `(${usedRefs.length})`;
+    if (unusedCountEl) unusedCountEl.textContent = `(${unusedRefs.length})`;
 
     // Botón de exportar
     const exportBtn = document.getElementById('export-bibliography-btn');
@@ -1225,6 +1234,11 @@ class App {
             <h3 style="color: #111827; margin-top: 0;">📊 Estadísticas del Documento</h3>
             <p><strong>Total de Palabras:</strong> ${docText.split(/\s+/).filter(w => w.length > 0).length}</p>
             <p><strong>Referencias Detectadas:</strong> ${bibliografia.length}</p>
+          </div>
+           <!-- CONTENIDO DEL DOCUMENTO (NUEVO) -->
+          <h3 style="color: #4f46e5; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-top: 40px;">📄 Contenido del Documento</h3>
+          <div style="font-size: 12px; text-align: justify; margin-bottom: 30px;">
+            ${docHtml}
           </div>
           <!-- ANÁLISIS DE AGENTES -->
           <h3 style="color: #4f46e5; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-top: 40px;">🤖 Análisis de Inteligencia Artificial</h3>
