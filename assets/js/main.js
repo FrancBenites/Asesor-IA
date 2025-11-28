@@ -76,11 +76,23 @@ class App {
   }
 
   static setupThemeToggle() {
-    document.querySelectorAll('[data-theme-toggle]').forEach(btn => {
-      btn.addEventListener('click', () => {
+    // 1. Cargar preferencia guardada al inicio
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    // 2. Usar delegación de eventos para el botón (más robusto)
+    document.addEventListener('click', (e) => {
+      const toggleBtn = e.target.closest('[data-theme-toggle]');
+      if (toggleBtn) {
         const isDark = document.documentElement.classList.toggle('dark');
         localStorage.setItem('theme', isDark ? 'dark' : 'light');
-      });
+
+        // Opcional: Actualizar el estado visual del botón si es necesario
+        console.log('Tema cambiado a:', isDark ? 'Oscuro' : 'Claro');
+      }
     });
   }
 
@@ -104,9 +116,6 @@ class App {
       if (icon) icon.textContent = collapsed ? 'menu' : 'menu_open';
     });
   }
-
-  // VERSIÓN 100% ESTABLE: Funciona con gemini-2.5-flash
-
 
   // VERSIÓN 100% ESTABLE: Funciona con gemini-2.5-flash
   static async generateChatResponse(query, context = '') {
@@ -236,15 +245,15 @@ class App {
     }, 100);
   }
 
-  // NUEVO: Llamar a agentes específicos de Langflow
+  // NUEVO: Llamar a agentes específicos de Langflow (DataStax)
   static async callLangflowAgent(agentType, query, context = '') {
     const API_KEY = import.meta.env.VITE_LANGFLOW_API_KEY;
 
-    const BASE_URL = "https://unwillful-france-unyouthful.ngrok-free.dev"; // <--- Poner aquí la URL de Ngrok
+    // URLs de DataStax Langflow
     const AGENT_URLS = {
-      estructura: `${BASE_URL}/api/v1/run/6e2da7d9-13d0-40eb-b4f1-b605de6d0253`,
-      redaccion: `${BASE_URL}/api/v1/run/7514afd6-fef8-4fb9-82e2-431f818217d4`,
-      citas: `${BASE_URL}/api/v1/run/6c816e03-1803-40a5-a7fe-03078cec9aa9`
+      estructura: "https://aws-us-east-2.langflow.datastax.com/lf/710f7bee-1f13-4a71-8fbf-8afad0fec6f6/api/v1/run/3fc4b074-6c2d-411f-b348-e108abe38246",
+      redaccion: "https://aws-us-east-2.langflow.datastax.com/lf/710f7bee-1f13-4a71-8fbf-8afad0fec6f6/api/v1/run/f9c76890-dae3-4f88-a051-bc88aae73831",
+      citas: "https://aws-us-east-2.langflow.datastax.com/lf/710f7bee-1f13-4a71-8fbf-8afad0fec6f6/api/v1/run/e3c09495-9a47-4370-9379-12215fe7ef48"
     };
 
     const url = AGENT_URLS[agentType];
@@ -255,16 +264,16 @@ class App {
       ? `Contexto del documento:\n${context}\n\nConsulta: ${query}`
       : query;
 
-    console.log('🔍 Enviando a Langflow (NUEVO FORMATO):');
+    console.log('🔍 Enviando a Langflow (DataStax):');
     console.log('URL:', url);
-    console.log('Prompt:', fullPrompt);
 
-    // NUEVO FORMATO: Enviar directamente el input_value
+    // Enviar solicitud a DataStax
     const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${API_KEY}`
+        "Authorization": `Bearer ${API_KEY}`,
+        "X-DataStax-Current-Org": "df957b95-374f-4b44-a59a-620c249ebd0c"
       },
       body: JSON.stringify({
         input_value: fullPrompt,
@@ -282,9 +291,10 @@ class App {
     const data = await response.json();
     console.log('📥 Respuesta de Langflow:', JSON.stringify(data, null, 2));
 
-    // Buscar texto en las rutas posibles de Langflow
+    // Buscar texto en las rutas posibles de la respuesta
     const paths = [
       data?.outputs?.[0]?.outputs?.[0]?.results?.message?.text,
+      data?.outputs?.[0]?.outputs?.[0]?.results?.message?.data?.text,
       data?.outputs?.[0]?.outputs?.[0]?.messages?.[0]?.message,
       data?.outputs?.[0]?.outputs?.[0]?.text,
       data?.result?.outputs?.[0]?.results?.message?.text,
@@ -296,12 +306,9 @@ class App {
 
     for (const text of paths) {
       if (text && typeof text === "string" && text.trim().length > 10) {
-
-        // === NUEVO: Detectar error de búsqueda ===
         if (text.includes("Error running graph") || text.includes("Name cannot be empty")) {
-          return "⚠️ Lo siento, en este momento no puedo acceder a los motores de búsqueda para verificar las citas. Por favor intenta más tarde.";
+          return "⚠️ Lo siento, no puedo verificar las citas en este momento. Intenta más tarde.";
         }
-        // ========================================
         return text.trim();
       }
     }
@@ -322,7 +329,8 @@ class App {
         this.addChatMessage('Por favor, escribe al menos 50 caracteres para analizar.', false);
         return;
       }
-      // 1. BLOQUEAR INTERFAZ (Botón Analizar + Chat)
+
+      // 1. BLOQUEAR INTERFAZ
       analyzeBtn.disabled = true;
       analyzeBtn.innerHTML = '<span class="material-icons">hourglass_empty</span> 3 Agentes analizando...';
       const chatInput = document.getElementById('chat-input');
@@ -332,31 +340,37 @@ class App {
         chatSendBtn.disabled = true;
         chatSendBtn.classList.add('opacity-50', 'cursor-not-allowed');
       }
+
       try {
         // === CARGAR BIBLIOGRAFÍA ===
         const bibliografia = JSON.parse(localStorage.getItem('bibliografia') || '[]');
         const bibContext = bibliografia.length > 0
           ? `BIBLIOGRAFÍA GUARDADA:\n${bibliografia.map(b => `- ${b.autor} (${b.año}). ${b.titulo}`).join('\n')}`
           : 'No hay referencias guardadas en la bibliografía';
+
         // 1. AGENTE ESTRUCTURA
         this.addChatMessage('**Agente Estructura** activado...', false);
         const estructura = await this.callLangflowAgent('estructura', text);
         this.addCollapsibleMessage('Análisis de Estructura', estructura, '📊');
+
         // 2. AGENTE REDACCIÓN
         this.addChatMessage('**Agente Redacción** activado...', false);
         const redaccion = await this.callLangflowAgent('redaccion', text);
         this.addCollapsibleMessage('Análisis de Redacción', redaccion, '✍️');
+
         // 3. AGENTE CITAS
         this.addChatMessage('**Agente Citas** activado...', false);
         const citas = await this.callLangflowAgent('citas', text, bibContext);
         this.addCollapsibleMessage('Análisis de Citas', citas, '📚');
-        this.addChatMessage('**Análisis completo.** si quieres que profundice en algo, selecciona el agente correspondiente.', false);
+
+        this.addChatMessage('**Análisis completo.** Selecciona un agente para ver detalles.', false);
+
       } catch (error) {
         console.error('Error en análisis:', error);
         this.addChatMessage('Ocurrió un error durante el análisis. Por favor intenta de nuevo.', false);
       } finally {
         // 2. DESBLOQUEAR INTERFAZ
-        analyzeBtn.disabled = false; // <--- Importante: Reactivar botón analizar
+        analyzeBtn.disabled = false;
         analyzeBtn.innerHTML = '<span class="material-icons">smart_toy</span> Analizar con 3 Agentes IA';
         if (chatInput) {
           chatInput.disabled = false;
@@ -469,57 +483,92 @@ class App {
       .replace(/\n/g, '<br>');
   }
 
-  // NUEVO: Guardar documento automáticamente en Supabase
+  // NUEVO: Guardar documento automáticamente en Supabase (CON CHUNKING)
   static async initAutoSave() {
     const editor = document.getElementById('thesis-editor');
     const chatContainer = document.querySelector('.flex-1.space-y-4');
-    const docNameInput = document.getElementById('doc-name'); // <--- Referencia al input de nombre
+    const docNameInput = document.getElementById('doc-name');
+
     if (!editor || !chatContainer) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    // Cargar al inicio desde Supabase
+    // --- PARTE 1: CARGAR (Lectura desde Chunks) ---
+    // A. Cargar Título (de tabla documents)
     const { data: doc } = await supabase
       .from('documents')
-      .select('content, title') // <--- Pedir también el título
+      .select('title')
       .eq('user_id', user.id)
       .single();
-    if (doc) {
-      if (doc.content) editor.innerHTML = doc.content;
-      if (doc.title && docNameInput) docNameInput.value = doc.title; // <--- Restaurar título
+
+    if (doc?.title && docNameInput) docNameInput.value = doc.title;
+    // B. Cargar Contenido (Reconstruir desde document_chunks)
+    const { data: chunks } = await supabase
+      .from('document_chunks')
+      .select('content')
+      .eq('user_id', user.id)
+      .order('chunk_index', { ascending: true });
+    if (chunks && chunks.length > 0) {
+      // Unir todos los trocitos para formar el documento completo
+      editor.innerHTML = chunks.map(c => c.content).join('');
     }
+    // ------------------------------------------------
     // Cargar historial de chat (localStorage)
     const savedChat = localStorage.getItem('thesis-chat');
     if (savedChat) chatContainer.innerHTML = savedChat;
     // Guardar cada 3 segundos (debounce)
     let timeout;
-
-    // Función de guardado
+    // --- PARTE 2: GUARDAR (Escritura en Chunks) ---
     const saveToSupabase = async () => {
-      this.showToast('Documento guardado automáticamente', 'success');
+      this.showToast('Guardando...', 'info');
       const currentTitle = docNameInput ? docNameInput.value : 'Sin título';
-
-      await supabase
+      const fullContent = editor.innerHTML;
+      // A. Guardar solo metadatos (Título) en tabla principal
+      const { error: docError } = await supabase
         .from('documents')
         .upsert({
           user_id: user.id,
-          content: editor.innerHTML,
-          title: currentTitle, // <--- Guardar título
+          title: currentTitle,
           updated_at: new Date().toISOString()
         }, { onConflict: 'user_id' });
+      if (docError) {
+        console.error('Error guardando título:', docError);
+        return;
+      }
+      // B. CHUNKING: Dividir y guardar contenido
+      // 1. Borrar chunks viejos
+      await supabase.from('document_chunks').delete().eq('user_id', user.id);
+      // 2. Crear nuevos chunks (4000 caracteres c/u)
+      const chunkSize = 4000;
+      const chunks = [];
+      for (let i = 0; i < fullContent.length; i += chunkSize) {
+        chunks.push({
+          user_id: user.id,
+          chunk_index: i / chunkSize,
+          content: fullContent.substring(i, i + chunkSize)
+        });
+      }
+      // 3. Insertar lotes
+      const { error: chunkError } = await supabase
+        .from('document_chunks')
+        .insert(chunks);
+      if (chunkError) {
+        console.error('Error guardando chunks:', chunkError);
+        this.showToast('Error al guardar documento', 'error');
+      } else {
+        this.showToast('Documento guardado (Chunking activo)', 'success');
+      }
     };
+    // ------------------------------------------------
     editor.addEventListener('input', () => {
       clearTimeout(timeout);
       timeout = setTimeout(saveToSupabase, 3000);
     });
-
-    // Escuchar cambios en el título también
     if (docNameInput) {
       docNameInput.addEventListener('input', () => {
         clearTimeout(timeout);
         timeout = setTimeout(saveToSupabase, 3000);
       });
     }
-    // Guardar chat en localStorage
     setInterval(() => {
       localStorage.setItem('thesis-chat', chatContainer.innerHTML);
     }, 3000);
@@ -572,7 +621,7 @@ class App {
     });
   }
 
-  // NUEVO: Limpiar chat y editor
+  // NUEVO: Limpiar chat y editor (Y BORRAR DE SUPABASE)
   static initNewChat() {
     const newChatBtn = document.getElementById('new-chat-btn');
     const editor = document.getElementById('thesis-editor');
@@ -581,20 +630,41 @@ class App {
 
     if (!newChatBtn || !editor || !chatContainer || !docName) return;
 
-    newChatBtn.addEventListener('click', () => {
-      if (confirm('¿Iniciar un nuevo chat? Se borrará el contenido actual.')) {
+    newChatBtn.addEventListener('click', async () => {
+      if (confirm('¿Estás seguro? Esto borrará el documento actual y el chat de la base de datos permanentemente.')) {
+
+        // 1. Limpiar Interfaz Local
         editor.innerHTML = '<p>Escribe aquí el contenido de tu tesis...</p>';
         chatContainer.innerHTML = '';
         docName.value = 'Ningún documento';
         localStorage.removeItem('thesis-document');
         localStorage.removeItem('thesis-chat');
 
-        // NUEVO: Marcar todas las referencias como "sin usar"
+        // 2. Limpiar Referencias Locales
         const bibliografia = JSON.parse(localStorage.getItem('bibliografia') || '[]');
         bibliografia.forEach(ref => ref.inDocument = false);
         localStorage.setItem('bibliografia', JSON.stringify(bibliografia));
-        console.log('📚 Referencias marcadas como "sin usar"');
 
+        // 3. BORRAR DE SUPABASE (Base de Datos)
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            // Borrar documento y chunks
+            await supabase.from('documents').delete().eq('user_id', user.id);
+            await supabase.from('document_chunks').delete().eq('user_id', user.id);
+
+            // Actualizar referencias en BD (marcarlas como no usadas)
+            await supabase.from('references').update({ in_document: false }).eq('user_id', user.id);
+
+            console.log('✅ Documento y chat eliminados de Supabase');
+            App.showToast('Nuevo chat iniciado (Base de datos limpia)', 'success');
+          }
+        } catch (error) {
+          console.error('Error limpiando BD:', error);
+          App.showToast('Error al limpiar la base de datos', 'error');
+        }
+
+        // Reiniciar mensaje de bienvenida
         this.addChatMessage('Nuevo chat iniciado. ¿En qué puedo ayudarte?', false);
       }
     });
