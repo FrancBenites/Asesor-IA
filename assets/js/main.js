@@ -722,8 +722,9 @@ class App {
       }
     });
 
-    // El listener de 'storage' ya no es necesario con Supabase realtime, 
-    // pero por ahora lo podemos quitar o dejar comentado.
+    // Listeners para borrado masivo
+    document.getElementById('delete-all-used')?.addEventListener('click', () => this.deleteAllReferences(true));
+    document.getElementById('delete-all-unused')?.addEventListener('click', () => this.deleteAllReferences(false));
   }
 
   // Añadir referencia a Supabase
@@ -789,6 +790,32 @@ class App {
       console.error('Error eliminando referencia:', error);
     } else {
       this.initBibliography();
+    }
+  }
+
+  // NUEVO: Borrado masivo inteligente
+  static async deleteAllReferences(inDocument) {
+    const typeText = inDocument ? 'USADAS en el documento' : 'GUARDADAS (sin usar)';
+
+    if (!confirm(`⚠️ ¿Estás seguro? Esto borrará TODAS las referencias ${typeText}.`)) {
+      return;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('references')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('in_document', inDocument);
+
+    if (error) {
+      console.error('Error borrando:', error);
+      this.showToast('Error al borrar referencias', 'error');
+    } else {
+      this.showToast('Referencias eliminadas correctamente', 'success');
+      this.initBibliography(); // Recargar lista
     }
   }
 
