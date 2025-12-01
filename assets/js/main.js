@@ -1211,13 +1211,22 @@ class App {
         const { data } = await supabase.from('references').select('*').eq('user_id', user.id);
         if (data) bibliografia = data;
       }
-      // Capturar análisis del chat (buscando los bloques colapsables)
+      // Capturar análisis del chat (buscando los bloques colapsables por sus clases)
       const chatContainer = document.querySelector('.flex-1.space-y-4');
-      const analysisBlocks = Array.from(chatContainer.querySelectorAll('details')).map(detail => {
-        const summary = detail.querySelector('summary').innerText;
-        const content = detail.querySelector('.prose').innerHTML;
-        return { title: summary, content: content };
-      });
+      // Buscamos los divs que tienen la clase específica del contenedor de acordeón
+      const accordionContainers = Array.from(chatContainer.querySelectorAll('.bg-gray-100.dark\\:bg-gray-800.rounded-xl'));
+
+      const analysisBlocks = accordionContainers.map(container => {
+        // El título está dentro del botón, en el segundo span del div flex
+        const titleElement = container.querySelector('button > div > span:nth-child(2)');
+        const title = titleElement ? titleElement.innerText : 'Análisis sin título';
+
+        // El contenido está en el div oculto (que tiene id empezando por accordion-)
+        const contentDiv = container.querySelector('div[id^="accordion-"]');
+        const content = contentDiv ? contentDiv.innerHTML : '';
+
+        return { title: title, content: content };
+      }).filter(block => block.content.trim() !== ''); // Filtrar bloques vacíos
       // === CREAR CONTENIDO HTML PARA PDF ===
       const reportHTML = `
         <div style="font-family: 'Helvetica', 'Arial', sans-serif; padding: 40px; color: #333; line-height: 1.6;">
