@@ -4,8 +4,9 @@ import sidebarHtml from '../../components/sidebar.html?raw'
 
 class App {
   static async init() { // Añadir async aquí
-    // Si es login, solo inicializar login
+    // Si es login, mostramos el body inmediatamente
     if (window.location.pathname.includes('index.html') || window.location.pathname === '/') {
+      document.body.style.display = 'block'; // <--- IMPORTANTE
       this.initLogin();
       return;
     }
@@ -14,6 +15,10 @@ class App {
       window.location.href = 'index.html';
       return;
     }
+
+    // ¡Autenticado! Ahora sí mostramos la interfaz
+    document.body.style.display = 'block';
+
     this.loadSidebar();
     this.initTheme();
     this.initChat();
@@ -1142,14 +1147,34 @@ class App {
 
   // Validar credenciales (Login)
   static async handleLogin(email, password) {
+    const rememberMe = document.getElementById('remember-me').checked;
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email,
       password: password,
     });
+
     if (error) {
       console.error('Error login:', error.message);
       return false;
     }
+
+    // === MAGIA DE RECORDARME ===
+    if (rememberMe && data.session) {
+      // Si quiere ser recordado, copiamos el token a localStorage
+      // Supabase usa una clave específica tipo 'sb-<project_ref>-auth-token'
+      // Pero gracias a nuestro HybridStorage, solo necesitamos saber la clave interna.
+      // Como es difícil saber la clave exacta del proyecto dinámicamente,
+      // haremos un truco: iterar sessionStorage y copiar todo lo que parezca de Supabase.
+
+      Object.keys(window.sessionStorage).forEach(key => {
+        if (key.startsWith('sb-')) {
+          const val = window.sessionStorage.getItem(key);
+          window.localStorage.setItem(key, val);
+        }
+      });
+    }
+
     return true;
   }
   // Registrar usuario
@@ -1313,11 +1338,18 @@ class App {
       element.innerHTML = reportHTML;
       document.body.appendChild(element);
       const opt = {
-        margin: [1, 1, 1, 1], // Márgenes de 1cm
+        margin: [1.5, 1.5, 1.5, 1.5], // Un poco más de margen
         filename: `Informe_AsesorIA_${docName.replace(/[^a-z0-9]/gi, '_')}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'cm', format: 'a4', orientation: 'portrait' }
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          // Esto ayuda a que no corte líneas de texto a la mitad
+          letterRendering: true
+        },
+        jsPDF: { unit: 'cm', format: 'a4', orientation: 'portrait' },
+        // CLAVE: Configuración de saltos de página
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
       };
       try {
         await html2pdf().set(opt).from(element).save();
