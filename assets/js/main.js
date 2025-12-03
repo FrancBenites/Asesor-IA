@@ -6,7 +6,7 @@ class App {
   static async init() { // Añadir async aquí
     // Si es login, mostramos el body inmediatamente
     if (window.location.pathname.includes('index.html') || window.location.pathname === '/') {
-      document.body.style.display = 'block'; // <--- IMPORTANTE
+      document.body.style.display = 'flex'; // <--- CAMBIAR A 'flex'
       this.initLogin();
       return;
     }
