@@ -339,12 +339,20 @@ class App {
 
   // NUEVO: Análisis con 3 agentes + integración con bibliografía
   static async initDocumentAnalysis() {
+    console.log('DEBUG: Iniciando initDocumentAnalysis');
     const analyzeBtn = document.getElementById('analyze-btn');
     const editor = document.getElementById('thesis-editor');
 
+    console.log('DEBUG: Elementos encontrados?', { analyzeBtn, editor }); // AGREGAR ESTO
+
+
     if (!analyzeBtn || !editor) return;
+    console.error('DEBUG: Falta el botón o el editor'); // AGREGAR ESTO
+
 
     analyzeBtn.addEventListener('click', async () => {
+      console.log('DEBUG: Click en analizar detectado'); // AGREGAR ESTO
+
       const text = editor.innerText.trim();
       if (!text || text.length < 50) {
         this.addChatMessage('Por favor, escribe al menos 50 caracteres para analizar.', false);
@@ -353,7 +361,8 @@ class App {
 
       // 1. BLOQUEAR INTERFAZ
       analyzeBtn.disabled = true;
-      analyzeBtn.innerHTML = '<span class="material-icons">hourglass_empty</span> 3 Agentes analizando...';
+      analyzeBtn.innerHTML = '<span class="material-icons animate-spin">hourglass_empty</span>';
+      analyzeBtn.title = '3 Agentes analizando...';
       const chatInput = document.getElementById('chat-input');
       const chatSendBtn = document.getElementById('chat-send-btn');
       if (chatInput) chatInput.disabled = true;
@@ -363,7 +372,6 @@ class App {
       }
 
       // Bloquear editor
-      const editor = document.getElementById('thesis-editor');
       if (editor) {
         editor.contentEditable = 'false';
         editor.classList.add('bg-gray-100', 'cursor-not-allowed', 'opacity-70'); // Efecto visual
@@ -422,7 +430,8 @@ class App {
 
       // 2. DESBLOQUEAR INTERFAZ (SIEMPRE)
       analyzeBtn.disabled = false;
-      analyzeBtn.innerHTML = '<span class="material-icons">smart_toy</span> Analizar con 3 Agentes IA';
+      analyzeBtn.innerHTML = '<span class="material-icons">smart_toy</span>';
+      analyzeBtn.title = 'Analizar con 3 Agentes IA';
       if (chatInput) {
         chatInput.disabled = false;
         chatInput.focus();
@@ -675,7 +684,8 @@ class App {
       document.getElementById('doc-name').value = file.name;
       const analyzeBtn = document.getElementById('analyze-btn');
       analyzeBtn.disabled = true;
-      analyzeBtn.innerHTML = '<span class="material-icons">hourglass_empty</span> Procesando tesis...';
+      analyzeBtn.innerHTML = '<span class="material-icons animate-spin">hourglass_empty</span>';
+      analyzeBtn.title = 'Procesando tesis...';
 
       try {
         const arrayBuffer = await file.arrayBuffer();
@@ -706,7 +716,8 @@ class App {
         this.addChatMessage('Error: Archivo no válido.', false);
       } finally {
         analyzeBtn.disabled = false;
-        analyzeBtn.innerHTML = '<span class="material-icons">auto_awesome</span> Analizar con IA';
+        analyzeBtn.innerHTML = '<span class="material-icons">smart_toy</span>';
+        analyzeBtn.title = 'Analizar con 3 Agentes IA';
       }
       this.showToast(`Documento cargado correctamente`, 'success');
     });

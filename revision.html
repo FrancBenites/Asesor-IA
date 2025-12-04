@@ -36,22 +36,22 @@
       <div class="flex-1 bg-[var(--surface)] rounded-lg p-8 shadow-md overflow-y-auto">
         <div class="flex justify-between items-center mb-4">
           <h1 class="text-3xl font-bold text-[var(--text)]">Documento</h1>
-          <div class="flex gap-2">
+          <div class="flex gap-4">
             <!-- BOTÓN SUBIR -->
-            <label
-              class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer flex items-center gap-2 transition-all shadow-sm">
-              <span class="material-icons">upload_file</span> Subir .docx
+            <label title="Subir .docx"
+              class="p-3 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer flex items-center justify-center transition-all shadow-sm">
+              <span class="material-icons">upload_file</span>
               <input type="file" id="docx-upload" accept=".docx" class="hidden" />
             </label>
             <!-- BOTÓN ANALIZAR -->
-            <button id="analyze-btn"
-              class="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 flex items-center gap-2 shadow-md transition-all">
-              <span class="material-icons">smart_toy</span> Analizar con 3 Agentes IA
+            <button id="analyze-btn" title="Analizar con 3 Agentes IA"
+              class="p-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 flex items-center justify-center shadow-md transition-all">
+              <span class="material-icons">smart_toy</span>
             </button>
             <!-- BOTÓN PDF -->
-            <button id="generate-pdf"
-              class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 shadow-md transition-all">
-              <span class="material-icons">picture_as_pdf</span> Generar Informe PDF
+            <button id="generate-pdf" title="Generar Informe PDF"
+              class="p-3 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center shadow-md transition-all">
+              <span class="material-icons">picture_as_pdf</span>
             </button>
           </div>
         </div>
