@@ -1133,6 +1133,31 @@ class App {
       const email = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value;
       if (isRegistering) {
+        // 1. Validar Email Nulo
+        if (!email) {
+          errorDiv.classList.remove('hidden');
+          errorText.textContent = 'Ingrese un correo válido';
+          return;
+        }
+        // 2. Validar Formato Email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          errorDiv.classList.remove('hidden');
+          errorText.textContent = 'Correo inválido';
+          return;
+        }
+        // 3. Validar Dominio UPAO (Requisito Crítico)
+        if (!email.endsWith('@upao.edu.pe')) {
+          errorDiv.classList.remove('hidden');
+          errorText.textContent = 'Debe usar correo institucional @upao.edu.pe';
+          return;
+        }
+        // 4. Validar Contraseña Nula
+        if (!password) {
+          errorDiv.classList.remove('hidden');
+          errorText.textContent = 'Ingrese una contraseña';
+          return;
+        }
         const confirmPass = document.getElementById('confirm-password').value;
 
         // === VALIDACIÓN DE CONTRASEÑA SEGURA ===
