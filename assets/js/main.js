@@ -28,6 +28,7 @@ class App {
     this.initNewChat(); // ← NUEVA LÍNEA
     this.initBibliography(); // ← NUEVA LÍNEA
     this.initPDFGeneration(); // ← NUEVA LÍNEA
+    this.checkPendingCitation(); // <--- AGREGAR ESTA LÍNEA
   }
 
   static loadSidebar() {
@@ -888,17 +889,46 @@ class App {
     }
   }
 
-  // NUEVO: Insertar cita en el editor
+  // NUEVO: Insertar cita en el editor (con soporte entre páginas)
   static insertCitation(author, year) {
     const editor = document.getElementById('thesis-editor');
+    const citation = ` (${author}, ${year}) `;
+
     if (editor) {
       editor.focus();
-      // Insertar formato APA (Autor, Año)
-      const citation = ` (${author}, ${year}) `;
       document.execCommand('insertText', false, citation);
       this.showToast('Cita insertada en el texto', 'success');
     } else {
-      this.showToast('Ve a la pestaña "Redacción" para insertar', 'warning');
+      // Si no estamos en el editor, guardamos y redirigimos
+      localStorage.setItem('pendingCitation', citation);
+      this.showToast('Redirigiendo a Revisión para insertar cita...', 'info');
+      setTimeout(() => {
+        window.location.href = 'revision.html';
+      }, 1000);
+    }
+  }
+
+  // NUEVO: Verificar si hay citas pendientes de insertar (Cross-page)
+  static checkPendingCitation() {
+    const pending = localStorage.getItem('pendingCitation');
+    const editor = document.getElementById('thesis-editor');
+
+    if (pending && editor) {
+      // Esperar un poco a que el editor esté listo
+      setTimeout(() => {
+        editor.focus();
+        // Mover cursor al final
+        const range = document.createRange();
+        range.selectNodeContents(editor);
+        range.collapse(false);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+
+        document.execCommand('insertText', false, pending);
+        this.showToast('Cita insertada automáticamente', 'success');
+        localStorage.removeItem('pendingCitation');
+      }, 500);
     }
   }
 
