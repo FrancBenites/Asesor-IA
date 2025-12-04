@@ -147,10 +147,11 @@ class App {
         })
       });
 
+      // === NUEVO: Manejo de errores específico ===
       if (!response.ok) {
-        const error = await response.json();
-        console.error('Error HTTP:', error);
-        return 'Error del servidor. Intenta de nuevo.';
+        if (response.status === 429) return '⚠️ Demasiadas solicitudes. Espera unos segundos.';
+        if (response.status === 500) return '❌ Error interno del servidor de IA.';
+        return `Error del servidor (${response.status}). Intenta de nuevo.`;
       }
 
       const data = await response.json();
@@ -186,7 +187,18 @@ class App {
         clearInterval(checkElements);
         const handleSend = async () => {
           const query = input.value.trim();
-          if (!query) return;
+
+          // 1. Validación: Mensaje Vacío
+          if (!query) {
+            this.showToast('Escribe una consulta primero', 'warning');
+            return;
+          }
+
+          // 2. Validación: Longitud Máxima
+          if (query.length > 2000) {
+            this.showToast('Consulta muy larga (máx 2000 caracteres)', 'warning');
+            return;
+          }
 
           // === NUEVO: Bloquear input y botón ===
           input.disabled = true;
@@ -194,6 +206,10 @@ class App {
           sendButton.classList.add('opacity-50', 'cursor-not-allowed');
 
           const selectedAgent = agentSelector.value;
+
+          // === NUEVO: Extraer contexto SIEMPRE (para todos los agentes) ===
+          const editor = document.getElementById('thesis-editor');
+          const context = editor ? editor.innerText.substring(0, 5000) : '';
 
           // Mostrar mensaje del usuario
           this.addChatMessage(query, true);
@@ -206,12 +222,10 @@ class App {
             let reply;
 
             if (selectedAgent === 'gemini') {
-              // Usar Gemini para consultas generales
-              reply = await this.generateChatResponse(query);
+              // AHORA SÍ pasamos el contexto a Gemini
+              reply = await this.generateChatResponse(query, context);
             } else {
               // Usar agente especializado de Langflow
-              const editor = document.getElementById('thesis-editor');
-              const context = editor ? editor.innerText.substring(0, 5000) : '';
               reply = await this.callLangflowAgent(selectedAgent, query, context);
             }
 
