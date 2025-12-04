@@ -817,6 +817,9 @@ class App {
     // Listeners para borrado masivo
     document.getElementById('delete-all-used')?.addEventListener('click', () => this.deleteAllReferences(true));
     document.getElementById('delete-all-unused')?.addEventListener('click', () => this.deleteAllReferences(false));
+
+    // NUEVO: Listener para sincronizar
+    document.getElementById('sync-refs-btn')?.addEventListener('click', () => this.syncReferences());
   }
 
   // Añadir referencia a Supabase (CON VALIDACIÓN Y ANTI-DUPLICADOS)
@@ -965,6 +968,73 @@ class App {
     } else {
       this.showToast('Referencias eliminadas correctamente', 'success');
       this.initBibliography(); // Recargar lista
+    }
+  }
+
+  // NUEVO: Sincronizar referencias con el contenido real del documento
+  static async syncReferences() {
+    const btn = document.getElementById('sync-refs-btn');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="material-icons animate-spin text-sm">sync</span> Analizando...';
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // 1. Obtener contenido del documento (Chunks)
+      const { data: chunks } = await supabase
+        .from('document_chunks')
+        .select('content')
+        .eq('user_id', user.id)
+        .order('chunk_index', { ascending: true });
+
+      if (!chunks || chunks.length === 0) {
+        this.showToast('El documento está vacío', 'info');
+        return;
+      }
+
+      const fullText = chunks.map(c => c.content).join('');
+      const plainText = fullText.replace(/<[^>]*>/g, ' '); // Limpiar HTML
+
+      // 2. Obtener todas las referencias guardadas
+      const { data: refs } = await supabase
+        .from('references')
+        .select('*')
+        .eq('user_id', user.id);
+
+      let updatedCount = 0;
+
+      // 3. Verificar una por una
+      for (const ref of refs) {
+        // Buscamos (Autor, Año) o Autor (Año)
+        const pattern1 = `${ref.author.split(',')[0]}, ${ref.year}`; // (García, 2023)
+        const pattern2 = `${ref.author.split(',')[0]} (${ref.year})`; // García (2023)
+
+        const isUsed = plainText.includes(pattern1) || plainText.includes(pattern2);
+
+        // Si el estado cambió, actualizamos la BD
+        if (ref.in_document !== isUsed) {
+          await supabase
+            .from('references')
+            .update({ in_document: isUsed })
+            .eq('id', ref.id);
+          updatedCount++;
+        }
+      }
+
+      this.showToast(`Sincronización completa. ${updatedCount} referencias actualizadas.`, 'success');
+      this.initBibliography(); // Recargar la vista
+
+    } catch (error) {
+      console.error('Error sincronizando:', error);
+      this.showToast('Error al sincronizar referencias', 'error');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-icons text-sm">sync</span> Sincronizar';
+      }
     }
   }
 
