@@ -819,11 +819,39 @@ class App {
     document.getElementById('delete-all-unused')?.addEventListener('click', () => this.deleteAllReferences(false));
   }
 
-  // Añadir referencia a Supabase
+  // Añadir referencia a Supabase (CON VALIDACIÓN Y ANTI-DUPLICADOS)
   static async addReference(ref) {
+    // 1. Validaciones Estrictas
+    if (!ref.autor || ref.autor === 'Autor desconocido') {
+      this.showToast('Falta el autor de la referencia', 'warning');
+      return;
+    }
+    if (!ref.año || !/^\d{4}$/.test(ref.año)) {
+      this.showToast('Año inválido (debe ser 4 dígitos)', 'warning');
+      return;
+    }
+    if (!ref.titulo) {
+      this.showToast('Falta el título de la referencia', 'warning');
+      return;
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // 2. Verificar Duplicados (Por título)
+    const { data: existing } = await supabase
+      .from('references')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('title', ref.titulo)
+      .single();
+
+    if (existing) {
+      this.showToast('Esta referencia ya existe en tu biblioteca', 'info');
+      return;
+    }
+
+    // 3. Guardar
     const { error } = await supabase
       .from('references')
       .insert([{
@@ -841,9 +869,38 @@ class App {
       console.error('Error guardando referencia:', error);
       this.showToast('Error al guardar referencia', 'error');
     } else {
-      // Recargar lista
       this.initBibliography();
       this.showToast('Referencia guardada correctamente', 'success');
+    }
+  }
+
+  // NUEVO: Insertar cita en el editor
+  static insertCitation(author, year) {
+    const editor = document.getElementById('thesis-editor');
+    if (editor) {
+      editor.focus();
+      // Insertar formato APA (Autor, Año)
+      const citation = ` (${author}, ${year}) `;
+      document.execCommand('insertText', false, citation);
+      this.showToast('Cita insertada en el texto', 'success');
+    } else {
+      this.showToast('Ve a la pestaña "Redacción" para insertar', 'warning');
+    }
+  }
+
+  // NUEVO: Editar referencia (Cargar en input)
+  static async editReference(id) {
+    const { data } = await supabase.from('references').select('*').eq('id', id).single();
+    if (data) {
+      // Reconstruir texto para el input
+      const text = `${data.author}, (${data.year}). ${data.title}. ${data.source || ''}`;
+      const input = document.getElementById('citation-text');
+      if (input) {
+        input.value = text;
+        input.focus();
+        this.showToast('Referencia cargada. Edítala y guárdala de nuevo.', 'info');
+        // Opcional: Podríamos borrar la vieja aquí, pero es más seguro dejar que el usuario la borre manualmente si quiere.
+      }
     }
   }
 
@@ -1097,38 +1154,46 @@ class App {
     console.log(`✅ ${references.length} referencias del agente, ${newCount} nuevas agregadas`);
   }
 
-  // Exportar bibliografía en formato APA
-  static exportBibliography() {
-    const saved = JSON.parse(localStorage.getItem('bibliografia') || '[]');
+  // Exportar bibliografía en formato APA (Desde Supabase)
+  static async exportBibliography() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-    if (saved.length === 0) {
-      alert('No hay referencias para exportar');
+    // 1. Obtener datos reales de Supabase
+    const { data: saved, error } = await supabase
+      .from('references')
+      .select('*')
+      .eq('user_id', user.id);
+
+    if (error || !saved || saved.length === 0) {
+      this.showToast('No hay referencias para exportar', 'warning');
       return;
     }
 
-    // Generar texto en formato APA
+    // 2. Generar texto en formato APA
     let apaText = '═══════════════════════════════════════════════════\n';
     apaText += '       BIBLIOGRAFÍA EN FORMATO APA 7\n';
     apaText += '       Generado por Asesor Tesis UPAO\n';
     apaText += '       Fecha: ' + new Date().toLocaleDateString('es-PE') + '\n';
     apaText += '═══════════════════════════════════════════════════\n\n';
 
-    // Ordenar por autor
-    const sorted = saved.sort((a, b) => a.autor.localeCompare(b.autor));
+    // Ordenar por autor (A-Z)
+    const sorted = saved.sort((a, b) => a.author.localeCompare(b.author));
 
     sorted.forEach((ref, index) => {
-      apaText += `${index + 1}. ${ref.autor} (${ref.año}). ${ref.titulo}.`;
-      if (ref.revista) apaText += ` ${ref.revista}.`;
-      if (ref.doi) apaText += ` ${ref.doi}`;
+      // Formato: Autor (Año). Título. Fuente. DOI/URL.
+      apaText += `${index + 1}. ${ref.author} (${ref.year}). ${ref.title}.`;
+      if (ref.source) apaText += ` ${ref.source}.`;
+      if (ref.doi_link) apaText += ` ${ref.doi_link}`;
       apaText += '\n\n';
     });
 
     apaText += '\n═══════════════════════════════════════════════════\n';
     apaText += `Total de referencias: ${saved.length}\n`;
-    apaText += `Referencias usadas en documento: ${saved.filter(r => r.inDocument).length}\n`;
-    apaText += `Referencias sugeridas por agente: ${saved.filter(r => r.fromAgent).length}\n`;
+    apaText += `Referencias usadas en documento: ${saved.filter(r => r.in_document).length}\n`; // Nota: in_document (snake_case)
+    apaText += `Referencias sugeridas por agente: ${saved.filter(r => r.from_agent).length}\n`; // Nota: from_agent (snake_case)
 
-    // Crear y descargar archivo
+    // 3. Crear y descargar archivo
     const blob = new Blob([apaText], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -1139,6 +1204,7 @@ class App {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
+    this.showToast('Bibliografía exportada correctamente', 'success');
   }
 
   // Inicializar login
@@ -1354,7 +1420,7 @@ class App {
     window.location.href = 'index.html';
   }
 
-  // NUEVO: Renderizar lista
+  // NUEVO: Renderizar lista (Con botones Editar e Insertar)
   static renderReferences(refs, container, isUsed) {
     if (refs.length === 0) {
       const emptyMessage = isUsed
@@ -1365,24 +1431,38 @@ class App {
     }
 
     container.innerHTML = refs.map((ref) => `
-        <div class="bg-[var(--background)] border border-[var(--border)] rounded-lg p-4 flex justify-between items-start shadow-sm hover:shadow-md transition-shadow">
+        <div class="bg-[var(--background)] border border-[var(--border)] rounded-lg p-4 flex justify-between items-start shadow-sm hover:shadow-md transition-shadow group">
           <div class="flex-1">
             <h4 class="font-bold text-[var(--text)]">${this.escapeHtml(ref.author)} (${this.escapeHtml(ref.year)})</h4>
             <p class="text-sm text-[var(--text)] mt-1 italic">${this.escapeHtml(ref.title)}</p>
             ${ref.source ? `<p class="text-xs text-[var(--text-secondary)] mt-1">${this.escapeHtml(ref.source)}</p>` : ''}
-            ${ref.doi_link ? `<p class="text-xs text-[var(--text-secondary)] mt-1">${this.escapeHtml(ref.doi_link)}</p>` : ''}
             ${ref.from_agent ? `<span class="inline-block mt-2 px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded">Sugerido por agente</span>` : ''}
           </div>
-          <button data-delete-id="${ref.id}" class="delete-ref-btn ml-4 text-red-500 hover:text-red-700 transition-colors">
-            <span class="material-icons text-sm">delete</span>
-          </button>
+          <div class="flex flex-col gap-2 ml-4 opacity-0 group-hover:opacity-100 transition-opacity">
+             <!-- Botón Insertar -->
+            <button data-author="${this.escapeHtml(ref.author)}" data-year="${ref.year}" class="insert-ref-btn text-green-500 hover:text-green-700" title="Insertar cita en texto">
+              <span class="material-icons text-sm">post_add</span>
+            </button>
+             <!-- Botón Editar -->
+            <button data-id="${ref.id}" class="edit-ref-btn text-blue-500 hover:text-blue-700" title="Editar">
+              <span class="material-icons text-sm">edit</span>
+            </button>
+             <!-- Botón Borrar -->
+            <button data-delete-id="${ref.id}" class="delete-ref-btn text-red-500 hover:text-red-700" title="Eliminar">
+              <span class="material-icons text-sm">delete</span>
+            </button>
+          </div>
         </div>`).join('');
 
-    // Re-attach event listeners for delete buttons
+    // Listeners para botones
     container.querySelectorAll('.delete-ref-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.deleteReference(btn.dataset.deleteId);
-      });
+      btn.addEventListener('click', () => this.deleteReference(btn.dataset.deleteId));
+    });
+    container.querySelectorAll('.insert-ref-btn').forEach(btn => {
+      btn.addEventListener('click', () => this.insertCitation(btn.dataset.author, btn.dataset.year));
+    });
+    container.querySelectorAll('.edit-ref-btn').forEach(btn => {
+      btn.addEventListener('click', () => this.editReference(btn.dataset.id));
     });
   }
 

@@ -25,7 +25,13 @@
     <!-- Main Content -->
     <main class="flex-1 flex flex-col p-6 overflow-hidden">
       <div class="flex-1 bg-[var(--surface)] rounded-lg p-8 shadow-md overflow-y-auto">
-        <h1 class="text-3xl font-bold mb-6 text-[var(--text)]">Bibliografía APA</h1>
+        <div class="flex justify-between items-center mb-6">
+          <h1 class="text-3xl font-bold text-[var(--text)]">Bibliografía APA</h1>
+          <button id="export-bibliography-btn"
+            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 shadow-sm">
+            <span class="material-icons">download</span> Exportar .txt
+          </button>
+        </div>
 
         <!-- Formulario Agregar -->
         <div class="bg-[var(--background)] border border-[var(--border)] rounded-xl p-6 mb-8 shadow-sm">
