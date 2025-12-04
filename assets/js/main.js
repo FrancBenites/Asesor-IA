@@ -493,6 +493,7 @@ class App {
 
   // NUEVO: Guardar documento automáticamente en Supabase (CON CHUNKING)
   static async initAutoSave() {
+    let hasUnsavedChanges = false;
     const editor = document.getElementById('thesis-editor');
     const chatContainer = document.querySelector('.flex-1.space-y-4');
     const docNameInput = document.getElementById('doc-name');
@@ -564,10 +565,12 @@ class App {
         this.showToast('Error al guardar documento', 'error');
       } else {
         this.showToast('Documento guardado (Chunking activo)', 'success');
+        hasUnsavedChanges = false;
       }
     };
     // ------------------------------------------------
     editor.addEventListener('input', () => {
+      hasUnsavedChanges = true;
       clearTimeout(timeout);
       timeout = setTimeout(saveToSupabase, 3000);
     });
@@ -580,6 +583,13 @@ class App {
     setInterval(() => {
       localStorage.setItem('thesis-chat', chatContainer.innerHTML);
     }, 3000);
+    // Avisar si intenta cerrar con cambios pendientes
+    window.addEventListener('beforeunload', (e) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = 'Tienes cambios sin guardar. ¿Estás seguro de salir?'; // Estándar para navegadores modernos
+      }
+    });
   }
 
   // NUEVO: Subir y leer .docx
@@ -591,41 +601,53 @@ class App {
 
     uploadInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
-      // Mostrar nombre del documento
-      document.getElementById('doc-name').value = file.name;
       if (!file) return;
 
-      // Mostrar "Cargando..."
+      // 1. Límite más generoso (50MB)
+      const maxSize = 50 * 1024 * 1024;
+      if (file.size > maxSize) {
+        this.showToast('El archivo supera los 50MB. Intenta comprimirlo.', 'error');
+        uploadInput.value = '';
+        return;
+      }
+
+      document.getElementById('doc-name').value = file.name;
       const analyzeBtn = document.getElementById('analyze-btn');
       analyzeBtn.disabled = true;
-      analyzeBtn.innerHTML = '<span class="material-icons">hourglass_empty</span> Cargando...';
+      analyzeBtn.innerHTML = '<span class="material-icons">hourglass_empty</span> Procesando tesis...';
 
       try {
         const arrayBuffer = await file.arrayBuffer();
-        const result = await mammoth.convertToHtml({ arrayBuffer });
+
+        // 2. Configuración para ignorar imágenes (Optimización clave)
+        const options = {
+          convertImage: mammoth.images.imgElement(function (image) {
+            return Promise.resolve(null); // Devuelve null para descartar la imagen
+          })
+        };
+
+        const result = await mammoth.convertToHtml({ arrayBuffer }, options); // <--- Usamos options
         const html = result.value;
 
         // Insertar en el editor
         editor.innerHTML = html;
-        // NUEVO: Extraer y guardar citas
         this.extractAndSaveCitations(html);
-        this.addChatMessage(`Documento cargado: "${file.name}"`, false);
+        this.addChatMessage(`Documento "${file.name}" cargado (Imágenes omitidas para rendimiento).`, false);
 
         editor.dispatchEvent(new Event('input'));
 
-        // Analizar automáticamente
         setTimeout(() => {
           document.getElementById('analyze-btn').click();
         }, 500);
 
       } catch (error) {
         console.error('Error al leer .docx:', error);
-        this.addChatMessage('Error: No se pudo leer el archivo. Asegúrate de que sea .docx válido.', false);
+        this.addChatMessage('Error: No se pudo procesar el archivo.', false);
       } finally {
         analyzeBtn.disabled = false;
         analyzeBtn.innerHTML = '<span class="material-icons">auto_awesome</span> Analizar con IA';
       }
-      this.showToast(`Documento "${file.name}" cargado correctamente`, 'success');
+      this.showToast(`Documento cargado correctamente`, 'success');
     });
   }
 
@@ -666,14 +688,17 @@ class App {
 
             console.log('✅ Documento y chat eliminados de Supabase');
             App.showToast('Nuevo chat iniciado (Base de datos limpia)', 'success');
+
+            // 4. Limpiar cambios pendientes
+            hasUnsavedChanges = false;
           }
         } catch (error) {
           console.error('Error limpiando BD:', error);
           App.showToast('Error al limpiar la base de datos', 'error');
         }
 
-        // Reiniciar mensaje de bienvenida
-        this.addChatMessage('Nuevo chat iniciado. ¿En qué puedo ayudarte?', false);
+        // Recargar para limpiar memoria y estado completamente
+        window.location.reload();
       }
     });
   }
@@ -1110,10 +1135,13 @@ class App {
         const confirmPass = document.getElementById('confirm-password').value;
 
         // === VALIDACIÓN DE CONTRASEÑA SEGURA ===
-        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d|.*[\W_]).{8,}$/;
+        // Exige: Min 8, 1 Mayúscula, 1 Minúscula, 1 Número Y 1 Especial
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+
         if (!passwordRegex.test(password)) {
           errorDiv.classList.remove('hidden');
-          errorText.textContent = 'La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un carácter especial.';
+          // El mensaje ahora sí coincide con la realidad
+          errorText.textContent = 'La contraseña debe tener: 8 caracteres, mayúscula, minúscula, número y símbolo.';
           return;
         }
         if (password !== confirmPass) {
@@ -1198,7 +1226,9 @@ class App {
   }
 
   // Cerrar sesión
-  static logout() {
+  static async logout() { // <--- AÑADIR async
+    await supabase.auth.signOut(); // <--- AÑADIR ESTO
+
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('username');
     localStorage.removeItem('loginTime');
@@ -1223,10 +1253,10 @@ class App {
     container.innerHTML = refs.map((ref) => `
         <div class="bg-[var(--background)] border border-[var(--border)] rounded-lg p-4 flex justify-between items-start shadow-sm hover:shadow-md transition-shadow">
           <div class="flex-1">
-            <h4 class="font-bold text-[var(--text)]">${ref.author} (${ref.year})</h4>
-            <p class="text-sm text-[var(--text)] mt-1 italic">${ref.title}</p>
-            ${ref.source ? `<p class="text-xs text-[var(--text-secondary)] mt-1">${ref.source}</p>` : ''}
-            ${ref.doi_link ? `<p class="text-xs text-[var(--text-secondary)] mt-1">${ref.doi_link}</p>` : ''}
+            <h4 class="font-bold text-[var(--text)]">${this.escapeHtml(ref.author)} (${this.escapeHtml(ref.year)})</h4>
+            <p class="text-sm text-[var(--text)] mt-1 italic">${this.escapeHtml(ref.title)}</p>
+            ${ref.source ? `<p class="text-xs text-[var(--text-secondary)] mt-1">${this.escapeHtml(ref.source)}</p>` : ''}
+            ${ref.doi_link ? `<p class="text-xs text-[var(--text-secondary)] mt-1">${this.escapeHtml(ref.doi_link)}</p>` : ''}
             ${ref.from_agent ? `<span class="inline-block mt-2 px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded">Sugerido por agente</span>` : ''}
           </div>
           <button data-delete-id="${ref.id}" class="delete-ref-btn ml-4 text-red-500 hover:text-red-700 transition-colors">
@@ -1246,125 +1276,125 @@ class App {
   static initPDFGeneration() {
     const pdfBtn = document.getElementById('generate-pdf');
     if (!pdfBtn) return;
+
     pdfBtn.addEventListener('click', async () => {
+      // 1. Bloquear botón
       pdfBtn.disabled = true;
+      const originalText = pdfBtn.innerHTML; // Guardamos el texto original
       pdfBtn.innerHTML = '<span class="material-icons">hourglass_empty</span> Generando...';
-      // === RECOPILAR DATOS ===
-      const editor = document.getElementById('thesis-editor');
-      const docText = editor.innerText; // Texto plano para conteo
-      const docHtml = editor.innerHTML; // HTML para formato
-      const docName = document.getElementById('doc-name').value;
 
-      // Obtener bibliografía desde Supabase (o caché local si prefieres rapidez)
-      // Por simplicidad usaremos lo que esté en memoria o una llamada rápida
-      const { data: { user } } = await supabase.auth.getUser();
-      let bibliografia = [];
-      if (user) {
-        const { data } = await supabase.from('references').select('*').eq('user_id', user.id);
-        if (data) bibliografia = data;
-      }
-      // Capturar análisis del chat (buscando los bloques colapsables por sus clases)
-      const chatContainer = document.querySelector('.flex-1.space-y-4');
-      // Buscamos los divs que tienen la clase específica del contenedor de acordeón
-      const accordionContainers = Array.from(chatContainer.querySelectorAll('.bg-gray-100.dark\\:bg-gray-800.rounded-xl'));
-
-      const analysisBlocks = accordionContainers.map(container => {
-        // El título está dentro del botón, en el segundo span del div flex
-        const titleElement = container.querySelector('button > div > span:nth-child(2)');
-        const title = titleElement ? titleElement.innerText : 'Análisis sin título';
-
-        // El contenido está en el div oculto (que tiene id empezando por accordion-)
-        const contentDiv = container.querySelector('div[id^="accordion-"]');
-        const content = contentDiv ? contentDiv.innerHTML : '';
-
-        return { title: title, content: content };
-      }).filter(block => block.content.trim() !== ''); // Filtrar bloques vacíos
-      // === CREAR CONTENIDO HTML PARA PDF ===
-      const reportHTML = `
-        <div style="font-family: 'Helvetica', 'Arial', sans-serif; padding: 40px; color: #333; line-height: 1.6;">
-          
-          <!-- PORTADA -->
-          <div style="text-align: center; margin-bottom: 50px; border-bottom: 2px solid #4f46e5; padding-bottom: 20px;">
-            <h1 style="color: #1e40af; font-size: 28px; margin-bottom: 10px;">Informe de Asesoría de Tesis</h1>
-            <p style="color: #6b7280; font-size: 14px;">Generado por Asesor IA UPAO</p>
-            <h2 style="margin-top: 30px; font-size: 20px;">📄 ${docName}</h2>
-            <p style="font-size: 12px; color: #9ca3af;">${new Date().toLocaleDateString('es-PE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-          </div>
-          <!-- RESUMEN -->
-          <div style="background: #f3f4f6; padding: 20px; border-radius: 10px; margin-bottom: 30px;">
-            <h3 style="color: #111827; margin-top: 0;">📊 Estadísticas del Documento</h3>
-            <p><strong>Total de Palabras:</strong> ${docText.split(/\s+/).filter(w => w.length > 0).length}</p>
-            <p><strong>Referencias Detectadas:</strong> ${bibliografia.length}</p>
-          </div>
-           <!-- CONTENIDO DEL DOCUMENTO (NUEVO) -->
-          <h3 style="color: #4f46e5; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-top: 40px;">📄 Contenido del Documento</h3>
-          <div style="font-size: 12px; text-align: justify; margin-bottom: 30px;">
-            ${docHtml}
-          </div>
-          <!-- ANÁLISIS DE AGENTES -->
-          <h3 style="color: #4f46e5; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-top: 40px;">🤖 Análisis de Inteligencia Artificial</h3>
-          
-          ${analysisBlocks.length > 0 ? analysisBlocks.map(block => `
-            <div style="margin-bottom: 25px;">
-              <h4 style="color: #374151; background: #e0e7ff; padding: 8px 12px; border-radius: 6px; display: inline-block;">${block.title}</h4>
-              <div style="font-size: 14px; text-align: justify; margin-top: 10px; padding-left: 10px; border-left: 3px solid #c7d2fe;">
-                ${block.content}
-              </div>
-            </div>
-          `).join('') : '<p style="font-style: italic; color: #6b7280;">No se ha realizado un análisis reciente en esta sesión.</p>'}
-          <!-- BIBLIOGRAFÍA -->
-          <div style="page-break-before: always;"></div>
-          <h3 style="color: #4f46e5; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px;">📖 Bibliografía Guardada</h3>
-          
-          ${bibliografia.length > 0 ? `
-            <ul style="list-style: none; padding: 0;">
-              ${bibliografia.map(b => `
-                <li style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px dashed #e5e7eb;">
-                  <div style="font-weight: bold; color: #1f2937;">${b.author} (${b.year})</div>
-                  <div style="font-style: italic; color: #4b5563;">${b.title}</div>
-                  ${b.source ? `<div style="font-size: 12px; color: #6b7280;">Fuente: ${b.source}</div>` : ''}
-                </li>
-              `).join('')}
-            </ul>
-          ` : '<p style="font-style: italic; color: #6b7280;">No hay referencias guardadas en la base de datos.</p>'}
-          <!-- FOOTER -->
-          <footer style="margin-top: 50px; text-align: center; color: #9ca3af; font-size: 10px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
-            Este informe es una ayuda generada por IA y debe ser revisado por el estudiante y su asesor humano.
-          </footer>
-        </div>
-      `;
-      // === GENERAR PDF ===
-      const element = document.createElement('div');
-      element.innerHTML = reportHTML;
-      document.body.appendChild(element);
-      const opt = {
-        margin: [1.5, 1.5, 1.5, 1.5], // Un poco más de margen
-        filename: `Informe_AsesorIA_${docName.replace(/[^a-z0-9]/gi, '_')}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          // Esto ayuda a que no corte líneas de texto a la mitad
-          letterRendering: true
-        },
-        jsPDF: { unit: 'cm', format: 'a4', orientation: 'portrait' },
-        // CLAVE: Configuración de saltos de página
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-      };
       try {
-        await html2pdf().set(opt).from(element).save();
+        // === RECOPILAR DATOS ===
+        const editor = document.getElementById('thesis-editor');
+        const docText = editor.innerText; // Texto plano para conteo
+        const docHtml = editor.innerHTML; // HTML para formato
+        const docName = document.getElementById('doc-name').value;
+
+        // Obtener bibliografía desde Supabase
+        const { data: { user } } = await supabase.auth.getUser();
+        let bibliografia = [];
+        if (user) {
+          const { data } = await supabase.from('references').select('*').eq('user_id', user.id);
+          if (data) bibliografia = data;
+        }
+
+        // Capturar análisis del chat
+        const chatContainer = document.querySelector('.flex-1.space-y-4');
+        const accordionContainers = Array.from(chatContainer.querySelectorAll('.bg-gray-100.dark\\:bg-gray-800.rounded-xl'));
+
+        const analysisBlocks = accordionContainers.map(container => {
+          const titleElement = container.querySelector('button > div > span:nth-child(2)');
+          const title = titleElement ? titleElement.innerText : 'Análisis sin título';
+          const contentDiv = container.querySelector('div[id^="accordion-"]');
+          const content = contentDiv ? contentDiv.innerHTML : '';
+          return { title: title, content: content };
+        }).filter(block => block.content.trim() !== '');
+
+        // === CREAR CONTENIDO HTML PARA PDF ===
+        const reportHTML = `
+          <div style="font-family: 'Helvetica', 'Arial', sans-serif; padding: 40px; color: #333; line-height: 1.6;">
+            <!-- PORTADA -->
+            <div style="text-align: center; margin-bottom: 50px; border-bottom: 2px solid #4f46e5; padding-bottom: 20px;">
+              <h1 style="color: #1e40af; font-size: 28px; margin-bottom: 10px;">Informe de Asesoría de Tesis</h1>
+              <p style="color: #6b7280; font-size: 14px;">Generado por Asesor IA UPAO</p>
+              <h2 style="margin-top: 30px; font-size: 20px;">📄 ${docName}</h2>
+              <p style="font-size: 12px; color: #9ca3af;">${new Date().toLocaleDateString('es-PE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            </div>
+            <!-- RESUMEN -->
+            <div style="background: #f3f4f6; padding: 20px; border-radius: 10px; margin-bottom: 30px;">
+              <h3 style="color: #111827; margin-top: 0;">📊 Estadísticas del Documento</h3>
+              <p><strong>Total de Palabras:</strong> ${docText.split(/\s+/).filter(w => w.length > 0).length}</p>
+              <p><strong>Referencias Detectadas:</strong> ${bibliografia.length}</p>
+            </div>
+             <!-- CONTENIDO DEL DOCUMENTO -->
+            <h3 style="color: #4f46e5; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-top: 40px;">📄 Contenido del Documento</h3>
+            <div style="font-size: 12px; text-align: justify; margin-bottom: 30px;">
+              ${docHtml}
+            </div>
+            <!-- ANÁLISIS DE AGENTES -->
+            <h3 style="color: #4f46e5; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; margin-top: 40px;">🤖 Análisis de Inteligencia Artificial</h3>
+            
+            ${analysisBlocks.length > 0 ? analysisBlocks.map(block => `
+              <div style="margin-bottom: 25px;">
+                <h4 style="color: #374151; background: #e0e7ff; padding: 8px 12px; border-radius: 6px; display: inline-block;">${block.title}</h4>
+                <div style="font-size: 14px; text-align: justify; margin-top: 10px; padding-left: 10px; border-left: 3px solid #c7d2fe;">
+                  ${block.content}
+                </div>
+              </div>
+            `).join('') : '<p style="font-style: italic; color: #6b7280;">No se ha realizado un análisis reciente en esta sesión.</p>'}
+            <!-- BIBLIOGRAFÍA -->
+            <div style="page-break-before: always;"></div>
+            <h3 style="color: #4f46e5; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px;">📖 Bibliografía Guardada</h3>
+            
+            ${bibliografia.length > 0 ? `
+              <ul style="list-style-type: none; padding: 0;">
+                ${bibliografia.map(ref => `
+                  <li style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px dashed #e5e7eb;">
+                    <strong style="color: #1f2937;">${ref.author} (${ref.year})</strong>. 
+                    <em style="color: #4b5563;">${ref.title}</em>.
+                    ${ref.source ? `<span style="color: #6b7280;"> ${ref.source}</span>` : ''}
+                    ${ref.doi_link ? `<br><a href="${ref.doi_link}" style="color: #2563eb; font-size: 12px; text-decoration: none;">${ref.doi_link}</a>` : ''}
+                  </li>
+                `).join('')}
+              </ul>
+            ` : '<p>No hay referencias guardadas.</p>'}
+          </div>
+        `;
+
+        // === GENERAR PDF ===
+        const opt = {
+          margin: [1, 1, 1, 1],
+          filename: `Informe_AsesorIA_${docName.replace(/[^a-z0-9]/gi, '_')}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+          jsPDF: { unit: 'cm', format: 'a4', orientation: 'portrait' },
+          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        };
+
+        await html2pdf().set(opt).from(reportHTML).save();
         this.showToast('Informe PDF descargado', 'success');
-        this.addChatMessage('**✅ Informe PDF generado y descargado correctamente.**', false);
-      } catch (err) {
-        console.error('Error generando PDF:', err);
+
+      } catch (error) {
+        console.error('Error PDF:', error);
         this.showToast('Error al generar PDF', 'error');
-        this.addChatMessage('❌ Error al generar el PDF. Intenta de nuevo.', false);
       } finally {
-        document.body.removeChild(element);
+        // 2. Desbloquear SIEMPRE (incluso si falla)
         pdfBtn.disabled = false;
-        pdfBtn.innerHTML = '<span class="material-icons">picture_as_pdf</span> Generar Informe PDF';
+        pdfBtn.innerHTML = originalText;
       }
     });
+  }
+
+  // Helper de seguridad para evitar ataques XSS
+  static escapeHtml(text) {
+    if (!text) return '';
+    return text
+      .toString()
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   }
 }
 
