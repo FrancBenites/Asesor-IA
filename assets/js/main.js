@@ -360,48 +360,60 @@ class App {
         chatSendBtn.classList.add('opacity-50', 'cursor-not-allowed');
       }
 
+      // === CARGAR BIBLIOGRAFÍA (Común para todos) ===
+      let bibContext = 'No hay referencias guardadas';
       try {
-        // === CARGAR BIBLIOGRAFÍA ===
         const bibliografia = JSON.parse(localStorage.getItem('bibliografia') || '[]');
-        const bibContext = bibliografia.length > 0
-          ? `BIBLIOGRAFÍA GUARDADA:\n${bibliografia.map(b => `- ${b.autor} (${b.año}). ${b.titulo}`).join('\n')}`
-          : 'No hay referencias guardadas en la bibliografía';
+        if (bibliografia.length > 0) {
+          bibContext = `BIBLIOGRAFÍA GUARDADA:\n${bibliografia.map(b => `- ${b.autor} (${b.año}). ${b.titulo}`).join('\n')}`;
+        }
+      } catch (e) { console.warn('Error leyendo bibliografía local', e); }
 
-        // 1. AGENTE ESTRUCTURA
+      // 1. AGENTE ESTRUCTURA
+      try {
         this.addChatMessage('**Agente Estructura** activado...', false);
         const estructura = await this.callLangflowAgent('estructura', text);
         this.addCollapsibleMessage('Análisis de Estructura', estructura, '📊');
+      } catch (error) {
+        console.error('Fallo Agente Estructura:', error);
+        this.addChatMessage('❌ Error en Análisis de Estructura (Saltando...)', false);
+      }
 
-        // 2. AGENTE REDACCIÓN
+      // 2. AGENTE REDACCIÓN
+      try {
         this.addChatMessage('**Agente Redacción** activado...', false);
         const redaccion = await this.callLangflowAgent('redaccion', text);
         this.addCollapsibleMessage('Análisis de Redacción', redaccion, '✍️');
+      } catch (error) {
+        console.error('Fallo Agente Redacción:', error);
+        this.addChatMessage('❌ Error en Análisis de Redacción (Saltando...)', false);
+      }
 
-        // 3. AGENTE CITAS
+      // 3. AGENTE CITAS
+      try {
         this.addChatMessage('**Agente Citas** activado...', false);
         const citas = await this.callLangflowAgent('citas', text, bibContext);
         this.addCollapsibleMessage('Análisis de Citas', citas, '📚');
 
-        // === NUEVO: Extraer citas sugeridas ===
+        // Extraer citas sugeridas (solo si el agente funcionó)
         await this.extractAgentCitations(citas);
-
-        this.addChatMessage('**Análisis completo.** Selecciona un agente para ver detalles.', false);
-
       } catch (error) {
-        console.error('Error en análisis:', error);
-        this.addChatMessage('Ocurrió un error durante el análisis. Por favor intenta de nuevo.', false);
-      } finally {
-        // 2. DESBLOQUEAR INTERFAZ
-        analyzeBtn.disabled = false;
-        analyzeBtn.innerHTML = '<span class="material-icons">smart_toy</span> Analizar con 3 Agentes IA';
-        if (chatInput) {
-          chatInput.disabled = false;
-          chatInput.focus();
-        }
-        if (chatSendBtn) {
-          chatSendBtn.disabled = false;
-          chatSendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-        }
+        console.error('Fallo Agente Citas:', error);
+        this.addChatMessage('❌ Error en Análisis de Citas.', false);
+      }
+
+      this.addChatMessage('**Proceso finalizado.** Revisa los resultados disponibles.', false);
+
+      // 2. DESBLOQUEAR INTERFAZ (SIEMPRE)
+      analyzeBtn.disabled = false;
+      analyzeBtn.innerHTML = '<span class="material-icons">smart_toy</span> Analizar con 3 Agentes IA';
+      if (chatInput) {
+        chatInput.disabled = false;
+        chatInput.focus();
+      }
+      if (chatSendBtn) {
+        chatSendBtn.disabled = false;
+        chatSendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
       }
     });
   }
