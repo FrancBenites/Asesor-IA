@@ -56,46 +56,50 @@
 
           <!-- Columna 1: Usadas en el Documento -->
           <div class="space-y-4">
-            <h2 class="text-lg font-semibold mb-4 flex items-center gap-2 text-green-600 dark:text-green-400">
+            <h2 class="text-lg font-semibold flex items-center gap-2 text-green-600 dark:text-green-400">
               <span class="material-icons">check_circle</span>
-              Referencias Usadas en Documento
+              Referencias Usadas
               <span id="used-count"
                 class="text-sm bg-green-100 dark:bg-green-900 px-2 py-0.5 rounded-full ml-2">(0)</span>
             </h2>
-            <!-- NUEVO: Botonera de acciones -->
-            <div class="flex gap-2 mb-4">
+
+            <!-- Botones pequeños y discretos -->
+            <div class="flex gap-2 border-b border-[var(--border)] pb-2">
               <button id="sync-refs-btn"
-                class="flex-1 px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors text-sm flex items-center justify-center gap-2 font-medium">
+                class="px-2 py-1 text-xs border border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 rounded hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors flex items-center gap-1"
+                title="Analizar documento y actualizar lista">
                 <span class="material-icons text-sm">sync</span> Sincronizar
               </button>
               <button id="delete-all-used"
-                class="text-red-500 hover:text-red-700 text-sm flex items-center gap-1 transition-colors"
-                title="Borrar todas las usadas">
-                <span class="material-icons text-base">delete_sweep</span> Borrar Todo
+                class="px-2 py-1 text-xs border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 rounded hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors flex items-center gap-1">
+                <span class="material-icons text-sm">delete_sweep</span> Borrar Todo
               </button>
-              <div id="used-references-list" class="space-y-3 min-h-[100px]">
-                <!-- Se llena con JS -->
-              </div>
             </div>
-            <!-- Columna 2: Guardadas (Sin usar) -->
-            <div class="space-y-4">
-              <h2 class="text-lg font-semibold mb-4 flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                <span class="material-icons">bookmark</span>
-                Referencias Guardadas (Sin usar)
-                <span id="unused-count"
-                  class="text-sm bg-blue-100 dark:bg-blue-900 px-2 py-0.5 rounded-full ml-2">(0)</span>
-              </h2>
-              <button id="delete-all-unused"
-                class="text-red-500 hover:text-red-700 text-sm flex items-center gap-1 transition-colors"
-                title="Borrar todas las no usadas">
-                <span class="material-icons text-base">delete_sweep</span> Borrar Todo
-              </button>
-              <div id="unused-references-list" class="space-y-3 min-h-[100px]">
-                <!-- Se llena con JS -->
-              </div>
+
+            <!-- La lista va AQUÍ ABAJO, fuera de los botones -->
+            <div id="used-references-list" class="space-y-3 min-h-[100px]">
+              <!-- Se llena con JS -->
+            </div>
+          </div>
+          <!-- Columna 2: Guardadas (Sin usar) -->
+          <div class="space-y-4">
+            <h2 class="text-lg font-semibold mb-4 flex items-center gap-2 text-blue-600 dark:text-blue-400">
+              <span class="material-icons">bookmark</span>
+              Referencias Guardadas (Sin usar)
+              <span id="unused-count"
+                class="text-sm bg-blue-100 dark:bg-blue-900 px-2 py-0.5 rounded-full ml-2">(0)</span>
+            </h2>
+            <button id="delete-all-unused"
+              class="text-red-500 hover:text-red-700 text-sm flex items-center gap-1 transition-colors"
+              title="Borrar todas las no usadas">
+              <span class="material-icons text-base">delete_sweep</span> Borrar Todo
+            </button>
+            <div id="unused-references-list" class="space-y-3 min-h-[100px]">
+              <!-- Se llena con JS -->
             </div>
           </div>
         </div>
+      </div>
     </main>
   </div>
   <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
