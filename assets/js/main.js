@@ -1554,6 +1554,12 @@ class App {
         const docHtml = editor.innerHTML; // HTML para formato
         const docName = document.getElementById('doc-name').value;
 
+        // VALIDACIÓN: Documento vacío
+        if (!docText || docText.trim().length < 50) {
+          this.showToast('El documento es muy corto para generar un informe.', 'warning');
+          throw new Error('Documento vacío o muy corto'); // Esto saltará al catch y desbloqueará el botón
+        }
+
         // Obtener bibliografía desde Supabase
         const { data: { user } } = await supabase.auth.getUser();
         let bibliografia = [];
