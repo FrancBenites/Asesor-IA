@@ -303,8 +303,10 @@ class App {
     });
 
     if (!response.ok) {
+      if (response.status === 429) throw new Error('Demasiadas solicitudes (Rate Limit).');
+      if (response.status === 500) throw new Error('Error interno del servidor de IA.');
       const err = await response.text();
-      throw new Error(`Error ${response.status}: ${err.substring(0, 200)}`);
+      throw new Error(`Error ${response.status}: ${err.substring(0, 50)}...`);
     }
 
     const data = await response.json();
@@ -358,6 +360,20 @@ class App {
       if (chatSendBtn) {
         chatSendBtn.disabled = true;
         chatSendBtn.classList.add('opacity-50', 'cursor-not-allowed');
+      }
+
+      // Bloquear editor
+      const editor = document.getElementById('thesis-editor');
+      if (editor) {
+        editor.contentEditable = 'false';
+        editor.classList.add('bg-gray-100', 'cursor-not-allowed', 'opacity-70'); // Efecto visual
+
+        // Trampa para clics: Avisar si intenta editar
+        editor.onclick = () => {
+          if (editor.contentEditable === 'false') {
+            this.showToast('Espere a que finalice el análisis para editar', 'warning');
+          }
+        };
       }
 
       // === CARGAR BIBLIOGRAFÍA (Común para todos) ===
@@ -414,6 +430,12 @@ class App {
       if (chatSendBtn) {
         chatSendBtn.disabled = false;
         chatSendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+      // Desbloquear editor
+      if (editor) {
+        editor.contentEditable = 'true';
+        editor.classList.remove('bg-gray-100', 'cursor-not-allowed', 'opacity-70');
+        editor.onclick = null; // Quitar la trampa
       }
     });
   }
