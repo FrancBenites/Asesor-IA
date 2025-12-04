@@ -493,7 +493,7 @@ class App {
 
   // NUEVO: Guardar documento automáticamente en Supabase (CON CHUNKING)
   static async initAutoSave() {
-    let hasUnsavedChanges = false;
+    App.hasUnsavedChanges = false;
     const editor = document.getElementById('thesis-editor');
     const chatContainer = document.querySelector('.flex-1.space-y-4');
     const docNameInput = document.getElementById('doc-name');
@@ -565,12 +565,12 @@ class App {
         this.showToast('Error al guardar documento', 'error');
       } else {
         this.showToast('Documento guardado (Chunking activo)', 'success');
-        hasUnsavedChanges = false;
+        App.hasUnsavedChanges = false;
       }
     };
     // ------------------------------------------------
     editor.addEventListener('input', () => {
-      hasUnsavedChanges = true;
+      App.hasUnsavedChanges = true;
       clearTimeout(timeout);
       timeout = setTimeout(saveToSupabase, 3000);
     });
@@ -585,7 +585,7 @@ class App {
     }, 3000);
     // Avisar si intenta cerrar con cambios pendientes
     window.addEventListener('beforeunload', (e) => {
-      if (hasUnsavedChanges) {
+      if (App.hasUnsavedChanges) {
         e.preventDefault();
         e.returnValue = 'Tienes cambios sin guardar. ¿Estás seguro de salir?'; // Estándar para navegadores modernos
       }
@@ -690,16 +690,17 @@ class App {
             App.showToast('Nuevo chat iniciado (Base de datos limpia)', 'success');
 
             // 4. Limpiar cambios pendientes
-            hasUnsavedChanges = false;
+            App.hasUnsavedChanges = false;
+
+            // Recargar para limpiar memoria y estado completamente
+            window.location.reload();
           }
         } catch (error) {
           console.error('Error limpiando BD:', error);
           App.showToast('Error al limpiar la base de datos', 'error');
         }
-
-        // Recargar para limpiar memoria y estado completamente
-        window.location.reload();
       }
+
     });
   }
 
