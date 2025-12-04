@@ -531,40 +531,30 @@ class App {
       this.showToast('Guardando...', 'info');
       const currentTitle = docNameInput ? docNameInput.value : 'Sin título';
       const fullContent = editor.innerHTML;
-      // A. Guardar solo metadatos (Título) en tabla principal
-      const { error: docError } = await supabase
-        .from('documents')
-        .upsert({
-          user_id: user.id,
-          title: currentTitle,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' });
-      if (docError) {
-        console.error('Error guardando título:', docError);
-        return;
-      }
-      // B. CHUNKING: Dividir y guardar contenido
-      // 1. Borrar chunks viejos
-      await supabase.from('document_chunks').delete().eq('user_id', user.id);
-      // 2. Crear nuevos chunks (4000 caracteres c/u)
+
+      // === GUARDADO ATÓMICO (RPC) ===
+      // 1. Preparamos los chunks en memoria
       const chunkSize = 4000;
-      const chunks = [];
+      const chunksData = [];
       for (let i = 0; i < fullContent.length; i += chunkSize) {
-        chunks.push({
-          user_id: user.id,
+        chunksData.push({
           chunk_index: i / chunkSize,
           content: fullContent.substring(i, i + chunkSize)
         });
       }
-      // 3. Insertar lotes
-      const { error: chunkError } = await supabase
-        .from('document_chunks')
-        .insert(chunks);
-      if (chunkError) {
-        console.error('Error guardando chunks:', chunkError);
+
+      // 2. Enviamos todo junto a la base de datos (Transacción Segura)
+      const { error } = await supabase.rpc('save_document_with_chunks', {
+        p_user_id: user.id,
+        p_title: currentTitle,
+        p_chunks: chunksData
+      });
+
+      if (error) {
+        console.error('Error RPC:', error);
         this.showToast('Error al guardar documento', 'error');
       } else {
-        this.showToast('Documento guardado (Chunking activo)', 'success');
+        this.showToast('Documento guardado (Transacción Segura)', 'success');
         App.hasUnsavedChanges = false;
       }
     };
@@ -602,6 +592,20 @@ class App {
     uploadInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
+
+      // Validar Archivo Vacío
+      if (file.size === 0) {
+        this.showToast('El archivo está vacío.', 'error');
+        uploadInput.value = '';
+        return;
+      }
+
+      // Validar Extensión .docx
+      if (!file.name.toLowerCase().endsWith('.docx')) {
+        this.showToast('Solo se permiten archivos .docx', 'error');
+        uploadInput.value = '';
+        return;
+      }
 
       // 1. Límite más generoso (50MB)
       const maxSize = 50 * 1024 * 1024;
@@ -642,7 +646,7 @@ class App {
 
       } catch (error) {
         console.error('Error al leer .docx:', error);
-        this.addChatMessage('Error: No se pudo procesar el archivo.', false);
+        this.addChatMessage('Error: Archivo no válido.', false);
       } finally {
         analyzeBtn.disabled = false;
         analyzeBtn.innerHTML = '<span class="material-icons">auto_awesome</span> Analizar con IA';
