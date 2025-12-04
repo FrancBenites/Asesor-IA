@@ -573,6 +573,15 @@ class App {
     setInterval(() => {
       localStorage.setItem('thesis-chat', chatContainer.innerHTML);
     }, 3000);
+
+    // (Incluso si el usuario no deja de escribir)
+    setInterval(() => {
+      if (App.hasUnsavedChanges) {
+        console.log('💾 Guardado forzado por tiempo (30s)');
+        saveToSupabase();
+      }
+    }, 30000); // 30000 ms = 30 segundos
+
     // Avisar si intenta cerrar con cambios pendientes
     window.addEventListener('beforeunload', (e) => {
       if (App.hasUnsavedChanges) {
