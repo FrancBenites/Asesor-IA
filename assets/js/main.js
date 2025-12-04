@@ -1189,6 +1189,33 @@ class App {
         }
       } else {
         // LOGIN
+        // 1. Validar Email Nulo
+        if (!email) {
+          errorDiv.classList.remove('hidden');
+          errorText.textContent = 'Ingrese un correo válido';
+          return;
+        }
+        // 2. Validar Formato Email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          errorDiv.classList.remove('hidden');
+          errorText.textContent = 'Correo inválido';
+          return;
+        }
+        // 3. Validar Dominio UPAO
+        if (!email.endsWith('@upao.edu.pe')) {
+          errorDiv.classList.remove('hidden');
+          errorText.textContent = 'Use correo institucional @upao.edu.pe';
+          return;
+        }
+        // 4. Validar Contraseña Nula
+        if (!password) {
+          errorDiv.classList.remove('hidden');
+          errorText.textContent = 'Ingrese una contraseña';
+          return;
+        }
+
+        // Si pasa todo, intentamos Login
         if (await this.handleLogin(email, password)) {
           window.location.href = 'revision.html';
         } else {
