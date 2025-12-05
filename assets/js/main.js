@@ -2,7 +2,7 @@
 import { supabase } from './supabaseClient.js'
 import sidebarHtml from '../../components/sidebar.html?raw'
 
-class App {
+export class App {
   static async init() { // Añadir async aquí
     // Si es login, mostramos el body inmediatamente
     if (window.location.pathname.includes('index.html') || window.location.pathname === '/') {
@@ -545,7 +545,7 @@ class App {
       .replace(/\*(.*?)\*/g, '<em>$1</em>')              // *cursiva*
       .replace(/^- (.*)$/gm, '<li class="ml-4">$1</li>') // - lista
       .replace(/^\d+\. (.*)$/gm, '<li class="ml-4 list-decimal">$1</li>') // 1. lista
-      .replace(/<li>.*<\/li>/gs, '<ul class="list-disc space-y-1">$&</ul>') // envolver listas
+      .replace(/<li.*<\/li>/gs, '<ul class="list-disc space-y-1">$&</ul>') // envolver listas
       .replace(/\n/g, '<br>');
   }
 
