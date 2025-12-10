@@ -37,18 +37,15 @@
         <div class="flex justify-between items-center mb-4">
           <h1 class="text-3xl font-bold text-[var(--text)]">Documento</h1>
           <div class="flex gap-4">
-            <!-- BOTÓN SUBIR -->
             <label title="Subir .docx"
               class="p-3 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer flex items-center justify-center transition-all shadow-sm">
               <span class="material-icons">upload_file</span>
               <input type="file" id="docx-upload" accept=".docx" class="hidden" />
             </label>
-            <!-- BOTÓN ANALIZAR -->
             <button id="analyze-btn" title="Analizar con 3 Agentes IA"
               class="p-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 flex items-center justify-center shadow-md transition-all">
               <span class="material-icons">smart_toy</span>
             </button>
-            <!-- BOTÓN PDF -->
             <button id="generate-pdf" title="Generar Informe PDF"
               class="p-3 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center shadow-md transition-all">
               <span class="material-icons">picture_as_pdf</span>
@@ -62,9 +59,7 @@
       </div>
     </main>
 
-    <!-- CHAT SIDEBAR -->
     <aside class="w-96 bg-[var(--surface)] flex flex-col p-4 border-l border-[var(--border)] shadow-xl">
-      <!-- Header with Title and Clear Button -->
       <div class="flex items-center justify-between mb-4 pb-4 border-b border-[var(--border)]">
         <h2 class="text-xl font-bold text-[var(--text)]">💬 Asesor-IA</h2>
         <button id="new-chat-btn" class="p-2 rounded-lg text-red-500 hover:bg-[var(--background)] transition-colors"
@@ -73,14 +68,9 @@
         </button>
       </div>
 
-      <!-- Chat Messages Container -->
       <div class="flex-1 space-y-4 overflow-y-auto pr-2 mb-4">
-        <!-- Messages will be injected here -->
       </div>
-
-      <!-- Agent Selector + Input Area -->
       <div class="flex flex-col gap-3 pt-3 border-t border-[var(--border)]">
-        <!-- Agent Selector -->
         <div class="flex items-center gap-2">
           <span class="material-icons text-[var(--text-secondary)] text-sm">psychology</span>
           <select id="agent-selector"
@@ -91,8 +81,6 @@
             <option value="citas">📚 Experto en Citas APA</option>
           </select>
         </div>
-
-        <!-- Input Area -->
         <div class="flex items-center gap-2">
           <input id="chat-input"
             class="flex-1 bg-[var(--background)] border border-[var(--border)] text-[var(--text)] rounded-lg px-4 py-2 focus:ring-2 focus:ring-[var(--primary)] outline-none transition-all placeholder-[var(--text-secondary)]"

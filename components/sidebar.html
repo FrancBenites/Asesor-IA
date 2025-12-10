@@ -1,8 +1,6 @@
-<!-- components/sidebar.html -->
 <aside id="sidebar-container"
   class="bg-[var(--surface)] h-screen flex flex-col border-r border-[var(--border)] shadow-xl z-50 relative">
 
-  <!-- HEADER: Logo + Toggle -->
   <div class="p-6 flex items-center justify-between">
     <div class="flex items-center gap-3 overflow-hidden whitespace-nowrap logo-text">
       <div
@@ -17,7 +15,6 @@
     </button>
   </div>
 
-  <!-- NAVIGATION -->
   <nav class="flex-1 px-4 space-y-2 overflow-y-auto py-4">
     <a href="revision.html" class="nav-item" data-page="revision">
       <span class="material-icons text-xl">edit_document</span>
@@ -29,9 +26,7 @@
     </a>
   </nav>
 
-  <!-- FOOTER: User + Theme -->
   <div class="p-4 border-t border-[var(--border)] space-y-2">
-    <!-- Theme Toggle -->
     <button data-theme-toggle class="w-full nav-item justify-between group">
       <div class="flex items-center gap-3">
         <span class="material-icons">dark_mode</span>
@@ -42,13 +37,10 @@
       </div>
     </button>
 
-    <!-- Logout Button -->
     <button id="logout-btn" class="w-full nav-item text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 justify-start">
       <span class="material-icons">logout</span>
       <span class="nav-text font-medium">Cerrar Sesión</span>
     </button>
-
-    <!-- User Profile -->
     <div class="flex items-center gap-3 px-4 py-3 rounded-xl bg-[var(--background)] overflow-hidden whitespace-nowrap">
       <div id="user-initial"
         class="w-8 h-8 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 flex items-center justify-center text-white text-xs font-bold shadow-sm">

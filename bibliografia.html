@@ -19,10 +19,8 @@
 
 <body class="bg-[var(--background)] text-[var(--text)]" data-page="bibliografia" style="display: none;">
   <div class="flex h-screen">
-    <!-- Sidebar Container -->
     <div id="sidebar"></div>
 
-    <!-- Main Content -->
     <main class="flex-1 flex flex-col p-6 overflow-hidden">
       <div class="flex-1 bg-[var(--surface)] rounded-lg p-8 shadow-md overflow-y-auto">
         <div class="flex justify-between items-center mb-6">
@@ -33,7 +31,6 @@
           </button>
         </div>
 
-        <!-- Formulario Agregar -->
         <div class="bg-[var(--background)] border border-[var(--border)] rounded-xl p-6 mb-8 shadow-sm">
           <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
             <span class="material-icons text-[var(--primary)]">add_circle</span>
@@ -51,10 +48,8 @@
           </div>
         </div>
 
-        <!-- Lista de Referencias -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-          <!-- Columna 1: Usadas en el Documento -->
           <div class="space-y-4">
             <h2 class="text-lg font-semibold flex items-center gap-2 text-green-600 dark:text-green-400">
               <span class="material-icons">check_circle</span>
@@ -63,7 +58,6 @@
                 class="text-sm bg-green-100 dark:bg-green-900 px-2 py-0.5 rounded-full ml-2">(0)</span>
             </h2>
 
-            <!-- Botones pequeños y discretos -->
             <div class="flex gap-2 border-b border-[var(--border)] pb-2">
               <button id="sync-refs-btn"
                 class="px-2 py-1 text-xs border border-indigo-300 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 rounded hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors flex items-center gap-1"
@@ -76,12 +70,9 @@
               </button>
             </div>
 
-            <!-- La lista va AQUÍ ABAJO, fuera de los botones -->
             <div id="used-references-list" class="space-y-3 min-h-[100px]">
-              <!-- Se llena con JS -->
             </div>
           </div>
-          <!-- Columna 2: Guardadas (Sin usar) -->
           <div class="space-y-4">
             <h2 class="text-lg font-semibold mb-4 flex items-center gap-2 text-blue-600 dark:text-blue-400">
               <span class="material-icons">bookmark</span>
@@ -95,7 +86,6 @@
               <span class="material-icons text-base">delete_sweep</span> Borrar Todo
             </button>
             <div id="unused-references-list" class="space-y-3 min-h-[100px]">
-              <!-- Se llena con JS -->
             </div>
           </div>
         </div>

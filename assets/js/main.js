@@ -1,22 +1,19 @@
-// assets/js/main.js
 import { supabase } from './supabaseClient.js'
 import sidebarHtml from '../../components/sidebar.html?raw'
 
 export class App {
-  static async init() { // Añadir async aquí
-    // Si es login, mostramos el body inmediatamente
+  static async init() {
     if (window.location.pathname.includes('index.html') || window.location.pathname === '/') {
-      document.body.style.display = 'flex'; // <--- CAMBIAR A 'flex'
+      document.body.style.display = 'flex';
       this.initLogin();
       return;
     }
 
-    if (!(await this.checkAuth())) { // Añadir await
+    if (!(await this.checkAuth())) {
       window.location.href = 'index.html';
       return;
     }
 
-    // ¡Autenticado! Ahora sí mostramos la interfaz
     document.body.style.display = 'block';
 
     this.loadSidebar();
@@ -24,15 +21,14 @@ export class App {
     this.initChat();
     this.initDocumentAnalysis();
     this.initAutoSave();
-    this.initDocxUpload(); // ← NUEVA LÍNEA
-    this.initNewChat(); // ← NUEVA LÍNEA
-    this.initBibliography(); // ← NUEVA LÍNEA
-    this.initPDFGeneration(); // ← NUEVA LÍNEA
-    this.checkPendingCitation(); // <--- AGREGAR ESTA LÍNEA
+    this.initDocxUpload();
+    this.initNewChat();
+    this.initBibliography();
+    this.initPDFGeneration();
+    this.checkPendingCitation();
   }
 
   static loadSidebar() {
-    // Usamos el HTML importado directamente (más rápido y compatible con Vercel)
     const sidebarContainer = document.getElementById('sidebar');
     if (sidebarContainer) {
       sidebarContainer.innerHTML = sidebarHtml;
@@ -44,7 +40,6 @@ export class App {
     }
   }
 
-  // Inicializar botón de logout
   static initLogout() {
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
@@ -52,7 +47,6 @@ export class App {
     }
   }
 
-  // Actualizar información del usuario en el sidebar
   static async updateUserInfo() {
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -82,21 +76,18 @@ export class App {
   }
 
   static setupThemeToggle() {
-    // 1. Cargar preferencia guardada al inicio
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
-    // 2. Usar delegación de eventos para el botón (más robusto)
     document.addEventListener('click', (e) => {
       const toggleBtn = e.target.closest('[data-theme-toggle]');
       if (toggleBtn) {
         const isDark = document.documentElement.classList.toggle('dark');
         localStorage.setItem('theme', isDark ? 'dark' : 'light');
 
-        // Opcional: Actualizar el estado visual del botón si es necesario
         console.log('Tema cambiado a:', isDark ? 'Oscuro' : 'Claro');
       }
     });
@@ -123,7 +114,6 @@ export class App {
     });
   }
 
-  // VERSIÓN 100% ESTABLE: Funciona con gemini-2.5-flash
   static async generateChatResponse(query, context = '') {
     const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
@@ -148,7 +138,6 @@ export class App {
         })
       });
 
-      // === NUEVO: Manejo de errores específico ===
       if (!response.ok) {
         if (response.status === 429) return '⚠️ Demasiadas solicitudes. Espera unos segundos.';
         if (response.status === 500) return '❌ Error interno del servidor de IA.';
@@ -156,9 +145,8 @@ export class App {
       }
 
       const data = await response.json();
-      console.log('GEMINI RESPONSE:', data); // ← Para depurar
+      console.log('GEMINI RESPONSE:', data);
 
-      // EXTRAER TEXTO DE FORMA SEGURA
       const candidate = data.candidates?.[0];
       const part = candidate?.content?.parts?.[0];
       const text = part?.text;
@@ -176,7 +164,6 @@ export class App {
     }
   }
 
-  // INICIAR EL CHAT con selección de agente
   static initChat() {
     const checkElements = setInterval(() => {
       const sendButton = document.getElementById('chat-send-btn');
@@ -189,54 +176,44 @@ export class App {
         const handleSend = async () => {
           const query = input.value.trim();
 
-          // 1. Validación: Mensaje Vacío
           if (!query) {
             this.showToast('Escribe una consulta primero', 'warning');
             return;
           }
 
-          // 2. Validación: Longitud Máxima
           if (query.length > 2000) {
             this.showToast('Consulta muy larga (máx 2000 caracteres)', 'warning');
             return;
           }
 
-          // === NUEVO: Bloquear input y botón ===
           input.disabled = true;
           sendButton.disabled = true;
           sendButton.classList.add('opacity-50', 'cursor-not-allowed');
 
           const selectedAgent = agentSelector.value;
 
-          // === NUEVO: Extraer contexto SIEMPRE (para todos los agentes) ===
           const editor = document.getElementById('thesis-editor');
           const context = editor ? editor.innerText.substring(0, 5000) : '';
 
-          // Mostrar mensaje del usuario
           this.addChatMessage(query, true);
           input.value = '';
 
-          // Mostrar indicador de carga
           this.addChatMessage('⏳ Consultando...', false);
 
           try {
             let reply;
 
             if (selectedAgent === 'gemini') {
-              // AHORA SÍ pasamos el contexto a Gemini
               reply = await this.generateChatResponse(query, context);
             } else {
-              // Usar agente especializado de Langflow
               reply = await this.callLangflowAgent(selectedAgent, query, context);
             }
 
-            // Reemplazar mensaje de carga con la respuesta
             const chatMessages = chatContainer.querySelectorAll('div');
             const loadingMsg = chatMessages[chatMessages.length - 1];
             chatContainer.removeChild(loadingMsg);
             this.addChatMessage(reply, false);
 
-            // Si es el agente de citas, extraer referencias
             if (selectedAgent === 'citas') {
               this.extractAgentCitations(reply);
             }
@@ -247,13 +224,10 @@ export class App {
             chatContainer.removeChild(loadingMsg);
             this.addChatMessage(`❌ Error: ${error.message}`, false);
           } finally {
-            // <--- AÑADE DESDE AQUÍ
-            // === NUEVO: Desbloquear siempre al terminar ===
             input.disabled = false;
             sendButton.disabled = false;
             sendButton.classList.remove('opacity-50', 'cursor-not-allowed');
-            input.focus(); // Devolver el foco al input
-            // ==============================================
+            input.focus();
           }
         };
 
@@ -265,11 +239,9 @@ export class App {
     }, 100);
   }
 
-  // NUEVO: Llamar a agentes específicos de Langflow (DataStax)
   static async callLangflowAgent(agentType, query, context = '') {
     const API_KEY = import.meta.env.VITE_LANGFLOW_API_KEY;
 
-    // URLs de DataStax Langflow
     const AGENT_URLS = {
       estructura: "https://aws-us-east-2.langflow.datastax.com/lf/710f7bee-1f13-4a71-8fbf-8afad0fec6f6/api/v1/run/3fc4b074-6c2d-411f-b348-e108abe38246",
       redaccion: "https://aws-us-east-2.langflow.datastax.com/lf/710f7bee-1f13-4a71-8fbf-8afad0fec6f6/api/v1/run/f9c76890-dae3-4f88-a051-bc88aae73831",
@@ -279,7 +251,6 @@ export class App {
     const url = AGENT_URLS[agentType];
     if (!url) throw new Error(`Agente desconocido: ${agentType}`);
 
-    // Construir prompt con contexto si está disponible
     const fullPrompt = context.trim()
       ? `Contexto del documento:\n${context}\n\nConsulta: ${query}`
       : query;
@@ -287,7 +258,6 @@ export class App {
     console.log('🔍 Enviando a Langflow (DataStax):');
     console.log('URL:', url);
 
-    // Enviar solicitud a DataStax
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -313,7 +283,6 @@ export class App {
     const data = await response.json();
     console.log('📥 Respuesta de Langflow:', JSON.stringify(data, null, 2));
 
-    // Buscar texto en las rutas posibles de la respuesta
     const paths = [
       data?.outputs?.[0]?.outputs?.[0]?.results?.message?.text,
       data?.outputs?.[0]?.outputs?.[0]?.results?.message?.data?.text,
@@ -338,7 +307,6 @@ export class App {
     throw new Error("El agente respondió, pero no se pudo extraer el texto.");
   }
 
-  // NUEVO: Análisis con 3 agentes + integración con bibliografía
   static async initDocumentAnalysis() {
     console.log('DEBUG: Iniciando initDocumentAnalysis');
     const analyzeBtn = document.getElementById('analyze-btn');
@@ -348,11 +316,11 @@ export class App {
 
 
     if (!analyzeBtn || !editor) return;
-    console.error('DEBUG: Falta el botón o el editor'); // AGREGAR ESTO
+    console.error('DEBUG: Falta el botón o el editor');
 
 
     analyzeBtn.addEventListener('click', async () => {
-      console.log('DEBUG: Click en analizar detectado'); // AGREGAR ESTO
+      console.log('DEBUG: Click en analizar detectado');
 
       const text = editor.innerText.trim();
       if (!text || text.length < 50) {
@@ -360,7 +328,6 @@ export class App {
         return;
       }
 
-      // 1. BLOQUEAR INTERFAZ
       analyzeBtn.disabled = true;
       analyzeBtn.innerHTML = '<span class="material-icons animate-spin">hourglass_empty</span>';
       analyzeBtn.title = '3 Agentes analizando...';
@@ -372,12 +339,9 @@ export class App {
         chatSendBtn.classList.add('opacity-50', 'cursor-not-allowed');
       }
 
-      // Bloquear editor
       if (editor) {
         editor.contentEditable = 'false';
-        editor.classList.add('bg-gray-100', 'cursor-not-allowed', 'opacity-70'); // Efecto visual
-
-        // Trampa para clics: Avisar si intenta editar
+        editor.classList.add('bg-gray-100', 'cursor-not-allowed', 'opacity-70');
         editor.onclick = () => {
           if (editor.contentEditable === 'false') {
             this.showToast('Espere a que finalice el análisis para editar', 'warning');
@@ -385,7 +349,6 @@ export class App {
         };
       }
 
-      // === CARGAR BIBLIOGRAFÍA (Común para todos) ===
       let bibContext = 'No hay referencias guardadas';
       try {
         const bibliografia = JSON.parse(localStorage.getItem('bibliografia') || '[]');
@@ -394,7 +357,6 @@ export class App {
         }
       } catch (e) { console.warn('Error leyendo bibliografía local', e); }
 
-      // 1. AGENTE ESTRUCTURA
       try {
         this.addChatMessage('**Agente Estructura** activado...', false);
         const estructura = await this.callLangflowAgent('estructura', text);
@@ -404,7 +366,6 @@ export class App {
         this.addChatMessage('❌ Error en Análisis de Estructura (Saltando...)', false);
       }
 
-      // 2. AGENTE REDACCIÓN
       try {
         this.addChatMessage('**Agente Redacción** activado...', false);
         const redaccion = await this.callLangflowAgent('redaccion', text);
@@ -414,13 +375,12 @@ export class App {
         this.addChatMessage('❌ Error en Análisis de Redacción (Saltando...)', false);
       }
 
-      // 3. AGENTE CITAS
       try {
         this.addChatMessage('**Agente Citas** activado...', false);
         const citas = await this.callLangflowAgent('citas', text, bibContext);
         this.addCollapsibleMessage('Análisis de Citas', citas, '📚');
 
-        // Extraer citas sugeridas (solo si el agente funcionó)
+        await this.extractAgentCitations(citas);
         await this.extractAgentCitations(citas);
       } catch (error) {
         console.error('Fallo Agente Citas:', error);
@@ -429,7 +389,6 @@ export class App {
 
       this.addChatMessage('**Proceso finalizado.** Revisa los resultados disponibles.', false);
 
-      // 2. DESBLOQUEAR INTERFAZ (SIEMPRE)
       analyzeBtn.disabled = false;
       analyzeBtn.innerHTML = '<span class="material-icons">smart_toy</span>';
       analyzeBtn.title = 'Analizar con 3 Agentes IA';
@@ -441,16 +400,15 @@ export class App {
         chatSendBtn.disabled = false;
         chatSendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
       }
-      // Desbloquear editor
+
       if (editor) {
         editor.contentEditable = 'true';
         editor.classList.remove('bg-gray-100', 'cursor-not-allowed', 'opacity-70');
-        editor.onclick = null; // Quitar la trampa
+        editor.onclick = null;
       }
     });
   }
 
-  // NUEVO: Añadir mensaje con Markdown (ESPERA A marked)
   static addChatMessage(text, isUser = false) {
     const chatContainer = document.querySelector('.flex-1.space-y-4');
     if (!chatContainer) return;
@@ -458,12 +416,10 @@ export class App {
     const bubble = document.createElement('div');
     bubble.className = `p-3 rounded-lg max-w-xs ${isUser ? 'bg-primary text-white ml-auto' : 'bg-[var(--secondary)]'} prose prose-sm dark:prose-invert max-w-none`;
 
-    // ESPERAR A QUE marked ESTÉ LISTO
     const renderMarkdown = () => {
       if (window.markedReady && typeof marked !== 'undefined') {
         bubble.innerHTML = marked.parse(text);
       } else {
-        // Si marked no está listo, usar fallback simple
         const simple = text
           .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
           .replace(/\*(.*?)\*/g, '<em>$1</em>')
@@ -477,11 +433,9 @@ export class App {
       chatContainer.scrollTop = chatContainer.scrollHeight;
     };
 
-    // Si ya está listo, renderizar
     if (window.markedReady) {
       renderMarkdown();
     } else {
-      // Si no, esperar
       const check = setInterval(() => {
         if (window.markedReady) {
           clearInterval(check);
@@ -491,9 +445,8 @@ export class App {
     }
   }
 
-  // NUEVO: Mostrar notificación Toast
   static showToast(message, type = 'info') {
-    let bg = "#333"; // Default
+    let bg = "#333";
     if (type === 'success') bg = "linear-gradient(to right, #00b09b, #96c93d)";
     if (type === 'error') bg = "linear-gradient(to right, #ff5f6d, #ffc371)";
     if (type === 'warning') bg = "linear-gradient(to right, #f7b733, #fc4a1a)";
@@ -501,14 +454,13 @@ export class App {
       text: message,
       duration: 3000,
       close: true,
-      gravity: "top", // `top` or `bottom`
-      position: "right", // `left`, `center` or `right`
-      stopOnFocus: true, // Prevents dismissing of toast on hover
+      gravity: "top",
+      position: "right",
+      stopOnFocus: true,
       style: { background: bg },
     }).showToast();
   }
 
-  // Añadir mensaje colapsable al chat
   static addCollapsibleMessage(title, content, icon = '📊') {
     const chatContainer = document.querySelector('.flex-1.space-y-4');
     if (!chatContainer) return;
@@ -538,18 +490,16 @@ export class App {
     chatContainer.scrollTop = chatContainer.scrollHeight;
   }
 
-  // NUEVO: Convertir Markdown simple a HTML
   static markdownToHtml(text) {
     return text
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // **negrita**
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')              // *cursiva*
-      .replace(/^- (.*)$/gm, '<li class="ml-4">$1</li>') // - lista
-      .replace(/^\d+\. (.*)$/gm, '<li class="ml-4 list-decimal">$1</li>') // 1. lista
-      .replace(/<li.*<\/li>/gs, '<ul class="list-disc space-y-1">$&</ul>') // envolver listas
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/^- (.*)$/gm, '<li class="ml-4">$1</li>')
+      .replace(/^\d+\. (.*)$/gm, '<li class="ml-4 list-decimal">$1</li>')
+      .replace(/<li.*<\/li>/gs, '<ul class="list-disc space-y-1">$&</ul>')
       .replace(/\n/g, '<br>');
   }
 
-  // NUEVO: Guardar documento automáticamente en Supabase (CON CHUNKING)
   static async initAutoSave() {
     App.hasUnsavedChanges = false;
     const editor = document.getElementById('thesis-editor');
@@ -559,8 +509,6 @@ export class App {
     if (!editor || !chatContainer) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    // --- PARTE 1: CARGAR (Lectura desde Chunks) ---
-    // A. Cargar Título (de tabla documents)
     const { data: doc } = await supabase
       .from('documents')
       .select('title')
@@ -568,30 +516,21 @@ export class App {
       .single();
 
     if (doc?.title && docNameInput) docNameInput.value = doc.title;
-    // B. Cargar Contenido (Reconstruir desde document_chunks)
     const { data: chunks } = await supabase
       .from('document_chunks')
       .select('content')
       .eq('user_id', user.id)
       .order('chunk_index', { ascending: true });
     if (chunks && chunks.length > 0) {
-      // Unir todos los trocitos para formar el documento completo
       editor.innerHTML = chunks.map(c => c.content).join('');
     }
-    // ------------------------------------------------
-    // Cargar historial de chat (localStorage)
     const savedChat = localStorage.getItem('thesis-chat');
     if (savedChat) chatContainer.innerHTML = savedChat;
-    // Guardar cada 3 segundos (debounce)
     let timeout;
-    // --- PARTE 2: GUARDAR (Escritura en Chunks) ---
     const saveToSupabase = async () => {
       this.showToast('Guardando...', 'info');
       const currentTitle = docNameInput ? docNameInput.value : 'Sin título';
       const fullContent = editor.innerHTML;
-
-      // === GUARDADO ATÓMICO (RPC) ===
-      // 1. Preparamos los chunks en memoria
       const chunkSize = 4000;
       const chunksData = [];
       for (let i = 0; i < fullContent.length; i += chunkSize) {
@@ -601,7 +540,6 @@ export class App {
         });
       }
 
-      // 2. Enviamos todo junto a la base de datos (Transacción Segura)
       const { error } = await supabase.rpc('save_document_with_chunks', {
         p_user_id: user.id,
         p_title: currentTitle,
@@ -616,7 +554,6 @@ export class App {
         App.hasUnsavedChanges = false;
       }
     };
-    // ------------------------------------------------
     editor.addEventListener('input', () => {
       App.hasUnsavedChanges = true;
       clearTimeout(timeout);
@@ -631,25 +568,20 @@ export class App {
     setInterval(() => {
       localStorage.setItem('thesis-chat', chatContainer.innerHTML);
     }, 3000);
-
-    // (Incluso si el usuario no deja de escribir)
     setInterval(() => {
       if (App.hasUnsavedChanges) {
         console.log('💾 Guardado forzado por tiempo (30s)');
         saveToSupabase();
       }
-    }, 30000); // 30000 ms = 30 segundos
-
-    // Avisar si intenta cerrar con cambios pendientes
+    }, 30000);
     window.addEventListener('beforeunload', (e) => {
       if (App.hasUnsavedChanges) {
         e.preventDefault();
-        e.returnValue = 'Tienes cambios sin guardar. ¿Estás seguro de salir?'; // Estándar para navegadores modernos
+        e.returnValue = 'Tienes cambios sin guardar. ¿Estás seguro de salir?';
       }
     });
   }
 
-  // NUEVO: Subir y leer .docx
   static initDocxUpload() {
     const uploadInput = document.getElementById('docx-upload');
     const editor = document.getElementById('thesis-editor');
@@ -659,22 +591,18 @@ export class App {
     uploadInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-
-      // Validar Archivo Vacío
       if (file.size === 0) {
         this.showToast('El archivo está vacío.', 'error');
         uploadInput.value = '';
         return;
       }
 
-      // Validar Extensión .docx
       if (!file.name.toLowerCase().endsWith('.docx')) {
         this.showToast('Solo se permiten archivos .docx', 'error');
         uploadInput.value = '';
         return;
       }
 
-      // 1. Límite más generoso (50MB)
       const maxSize = 50 * 1024 * 1024;
       if (file.size > maxSize) {
         this.showToast('El archivo supera los 50MB. Intenta comprimirlo.', 'error');
@@ -691,17 +619,15 @@ export class App {
       try {
         const arrayBuffer = await file.arrayBuffer();
 
-        // 2. Configuración para ignorar imágenes (Optimización clave)
         const options = {
           convertImage: mammoth.images.imgElement(function (image) {
-            return Promise.resolve(null); // Devuelve null para descartar la imagen
+            return Promise.resolve(null);
           })
         };
 
-        const result = await mammoth.convertToHtml({ arrayBuffer }, options); // <--- Usamos options
+        const result = await mammoth.convertToHtml({ arrayBuffer }, options);
         const html = result.value;
 
-        // Insertar en el editor
         editor.innerHTML = html;
         this.extractAndSaveCitations(html);
         this.addChatMessage(`Documento "${file.name}" cargado (Imágenes omitidas para rendimiento).`, false);
@@ -724,7 +650,6 @@ export class App {
     });
   }
 
-  // NUEVO: Limpiar chat y editor (Y BORRAR DE SUPABASE)
   static initNewChat() {
     const newChatBtn = document.getElementById('new-chat-btn');
     const editor = document.getElementById('thesis-editor');
@@ -736,36 +661,29 @@ export class App {
     newChatBtn.addEventListener('click', async () => {
       if (confirm('¿Estás seguro? Esto borrará el documento actual y el chat de la base de datos permanentemente.')) {
 
-        // 1. Limpiar Interfaz Local
         editor.innerHTML = '<p>Escribe aquí el contenido de tu tesis...</p>';
         chatContainer.innerHTML = '';
         docName.value = 'Ningún documento';
         localStorage.removeItem('thesis-document');
         localStorage.removeItem('thesis-chat');
 
-        // 2. Limpiar Referencias Locales
         const bibliografia = JSON.parse(localStorage.getItem('bibliografia') || '[]');
         bibliografia.forEach(ref => ref.inDocument = false);
         localStorage.setItem('bibliografia', JSON.stringify(bibliografia));
 
-        // 3. BORRAR DE SUPABASE (Base de Datos)
         try {
           const { data: { user } } = await supabase.auth.getUser();
           if (user) {
-            // Borrar documento y chunks
             await supabase.from('documents').delete().eq('user_id', user.id);
             await supabase.from('document_chunks').delete().eq('user_id', user.id);
 
-            // Actualizar referencias en BD (marcarlas como no usadas)
             await supabase.from('references').update({ in_document: false }).eq('user_id', user.id);
 
             console.log('✅ Documento y chat eliminados de Supabase');
             App.showToast('Nuevo chat iniciado (Base de datos limpia)', 'success');
 
-            // 4. Limpiar cambios pendientes
             App.hasUnsavedChanges = false;
 
-            // Recargar para limpiar memoria y estado completamente
             window.location.reload();
           }
         } catch (error) {
@@ -777,15 +695,13 @@ export class App {
     });
   }
 
-  // NUEVO: Cargar bibliografía al inicio
-  static async initBibliography() { // Añadir async
+  static async initBibliography() {
     console.log('📚 initBibliography ejecutándose');
     if (document.body.dataset.page !== 'bibliografia') return;
 
     const usedList = document.getElementById('used-references-list');
     const unusedList = document.getElementById('unused-references-list');
 
-    // Cargar desde Supabase
     const { data: saved, error } = await supabase
       .from('references')
       .select('*');
@@ -795,21 +711,16 @@ export class App {
       return;
     }
 
-    // Separate references
-    const usedRefs = saved.filter(ref => ref.in_document); // Nota: in_document (snake_case)
+    const usedRefs = saved.filter(ref => ref.in_document);
     const unusedRefs = saved.filter(ref => !ref.in_document);
 
-    // Render both lists
     this.renderReferences(usedRefs, usedList, true);
     this.renderReferences(unusedRefs, unusedList, false);
 
-    // === NUEVO: Actualizar contadores ===
     const usedCountEl = document.getElementById('used-count');
     const unusedCountEl = document.getElementById('unused-count');
     if (usedCountEl) usedCountEl.textContent = `(${usedRefs.length})`;
     if (unusedCountEl) unusedCountEl.textContent = `(${unusedRefs.length})`;
-
-    // Botón de exportar
     const exportBtn = document.getElementById('export-bibliography-btn');
     if (exportBtn) {
       exportBtn.addEventListener('click', () => this.exportBibliography());
@@ -820,23 +731,19 @@ export class App {
       if (text) {
         const ref = this.parseAPACitation(text);
         if (ref) {
-          this.addReference(ref); // addReference también será async
+          this.addReference(ref);
           document.getElementById('citation-text').value = '';
         }
       }
     });
 
-    // Listeners para borrado masivo
     document.getElementById('delete-all-used')?.addEventListener('click', () => this.deleteAllReferences(true));
     document.getElementById('delete-all-unused')?.addEventListener('click', () => this.deleteAllReferences(false));
 
-    // NUEVO: Listener para sincronizar
     document.getElementById('sync-refs-btn')?.addEventListener('click', () => this.syncReferences());
   }
 
-  // Añadir referencia a Supabase (CON VALIDACIÓN Y ANTI-DUPLICADOS)
   static async addReference(ref) {
-    // 1. Validaciones Estrictas
     if (!ref.autor || ref.autor === 'Autor desconocido') {
       this.showToast('Falta el autor de la referencia', 'warning');
       return;
@@ -853,7 +760,6 @@ export class App {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // 2. Verificar Duplicados (Por título)
     const { data: existing } = await supabase
       .from('references')
       .select('id')
@@ -866,7 +772,6 @@ export class App {
       return;
     }
 
-    // 3. Guardar
     const { error } = await supabase
       .from('references')
       .insert([{
@@ -889,7 +794,6 @@ export class App {
     }
   }
 
-  // NUEVO: Insertar cita en el editor (con soporte entre páginas)
   static insertCitation(author, year) {
     const editor = document.getElementById('thesis-editor');
     const citation = ` (${author}, ${year}) `;
@@ -899,7 +803,6 @@ export class App {
       document.execCommand('insertText', false, citation);
       this.showToast('Cita insertada en el texto', 'success');
     } else {
-      // Si no estamos en el editor, guardamos y redirigimos
       localStorage.setItem('pendingCitation', citation);
       this.showToast('Redirigiendo a Revisión para insertar cita...', 'info');
       setTimeout(() => {
@@ -908,16 +811,13 @@ export class App {
     }
   }
 
-  // NUEVO: Verificar si hay citas pendientes de insertar (Cross-page)
   static checkPendingCitation() {
     const pending = localStorage.getItem('pendingCitation');
     const editor = document.getElementById('thesis-editor');
 
     if (pending && editor) {
-      // Esperar un poco a que el editor esté listo
       setTimeout(() => {
         editor.focus();
-        // Mover cursor al final
         const range = document.createRange();
         range.selectNodeContents(editor);
         range.collapse(false);
@@ -932,28 +832,23 @@ export class App {
     }
   }
 
-  // NUEVO: Editar referencia (Cargar en input)
   static async editReference(id) {
     const { data } = await supabase.from('references').select('*').eq('id', id).single();
     if (data) {
-      // Reconstruir texto para el input
       const text = `${data.author}, (${data.year}). ${data.title}. ${data.source || ''}`;
       const input = document.getElementById('citation-text');
       if (input) {
         input.value = text;
         input.focus();
         this.showToast('Referencia cargada. Edítala y guárdala de nuevo.', 'info');
-        // Opcional: Podríamos borrar la vieja aquí, pero es más seguro dejar que el usuario la borre manualmente si quiere.
       }
     }
   }
 
-  // NUEVO: Parsear cita APA
   static parseAPACitation(text) {
     const regex = /^([^,]+),\s*([^\(]+)\s*\((\d{4})\)\.\s*(.+?)\.\s*(.+)$/;
     const match = text.match(regex);
 
-    // Si no coincide con el formato estricto, crear objeto básico
     const autorMatch = text.match(/^([^(]+)/);
     const añoMatch = text.match(/\((\d{4})\)/);
 
@@ -966,13 +861,11 @@ export class App {
       editorial: match ? match[5].trim() : '',
       revista: '',
       doi: '',
-      inDocument: false,    // Por defecto no está en documento
-      fromAgent: false,     // Por defecto no es del agente
+      inDocument: false,
+      fromAgent: false,
       dateAdded: new Date().toISOString()
     };
   }
-
-  // Eliminar referencia
   static async deleteReference(id) {
     const { error } = await supabase
       .from('references')
@@ -986,7 +879,6 @@ export class App {
     }
   }
 
-  // NUEVO: Borrado masivo inteligente
   static async deleteAllReferences(inDocument) {
     const typeText = inDocument ? 'USADAS en el documento' : 'GUARDADAS (sin usar)';
 
@@ -1008,11 +900,10 @@ export class App {
       this.showToast('Error al borrar referencias', 'error');
     } else {
       this.showToast('Referencias eliminadas correctamente', 'success');
-      this.initBibliography(); // Recargar lista
+      this.initBibliography();
     }
   }
 
-  // NUEVO: Sincronizar referencias con el contenido real del documento
   static async syncReferences() {
     const btn = document.getElementById('sync-refs-btn');
     if (btn) {
@@ -1024,7 +915,6 @@ export class App {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // 1. Obtener contenido del documento (Chunks)
       const { data: chunks } = await supabase
         .from('document_chunks')
         .select('content')
@@ -1037,9 +927,8 @@ export class App {
       }
 
       const fullText = chunks.map(c => c.content).join('');
-      const plainText = fullText.replace(/<[^>]*>/g, ' '); // Limpiar HTML
+      const plainText = fullText.replace(/<[^>]*>/g, ' ');
 
-      // 2. Obtener todas las referencias guardadas
       const { data: refs } = await supabase
         .from('references')
         .select('*')
@@ -1047,15 +936,12 @@ export class App {
 
       let updatedCount = 0;
 
-      // 3. Verificar una por una
       for (const ref of refs) {
-        // Buscamos (Autor, Año) o Autor (Año)
-        const pattern1 = `${ref.author.split(',')[0]}, ${ref.year}`; // (García, 2023)
-        const pattern2 = `${ref.author.split(',')[0]} (${ref.year})`; // García (2023)
+        const pattern1 = `${ref.author.split(',')[0]}, ${ref.year}`;
+        const pattern2 = `${ref.author.split(',')[0]} (${ref.year})`;
 
         const isUsed = plainText.includes(pattern1) || plainText.includes(pattern2);
 
-        // Si el estado cambió, actualizamos la BD
         if (ref.in_document !== isUsed) {
           await supabase
             .from('references')
@@ -1066,7 +952,7 @@ export class App {
       }
 
       this.showToast(`Sincronización completa. ${updatedCount} referencias actualizadas.`, 'success');
-      this.initBibliography(); // Recargar la vista
+      this.initBibliography();
 
     } catch (error) {
       console.error('Error sincronizando:', error);
@@ -1079,13 +965,12 @@ export class App {
     }
   }
 
-  static async extractAndSaveCitations(htmlContent) { // Añadir async
+  static async extractAndSaveCitations(htmlContent) {
     const text = htmlContent.replace(/<[^>]*>/g, ' ');
     console.log('🔍 Extrayendo citas y referencias del documento');
 
     const allReferences = new Map();
 
-    // 1. BUSCAR REFERENCIAS BIBLIOGRÁFICAS COMPLETAS
     const fullRefPattern = /([A-ZÁ-Ú][a-zá-ú]+(?:\s+[A-ZÁ-Ú][a-zá-ú]+)*(?:,\s+[A-Z]\.)*(?:,?\s+(?:y|&)\s+[A-ZÁ-Ú][a-zá-ú]+(?:,\s+[A-Z]\.)*)*)\s*\((\d{4})\)\.\s*([^.]+)\.\s*([^.]*)/g;
 
     let match;
@@ -1110,7 +995,6 @@ export class App {
       }
     }
 
-    // 2. BUSCAR CITAS EN EL TEXTO
     const inTextPattern = /\(([A-ZÁ-Ú][a-zá-ú]+(?:\s+et al\.)?),?\s*(\d{4})\)/g;
 
     while ((match = inTextPattern.exec(text)) !== null) {
@@ -1136,22 +1020,18 @@ export class App {
       return;
     }
 
-    // 3. GUARDAR EN SUPABASE
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Obtener referencias existentes para evitar duplicados
     const { data: saved } = await supabase.from('references').select('*');
     let newCount = 0;
 
     for (const [key, newRef] of allReferences) {
-      // Verificar si ya existe (por autor y año)
       const existing = saved.find(ref =>
         ref.author.includes(newRef.autor.split(',')[0]) && ref.year === newRef.año
       );
 
       if (!existing) {
-        // Insertar nueva
         await supabase.from('references').insert([{
           user_id: user.id,
           author: newRef.autor,
@@ -1164,7 +1044,6 @@ export class App {
         }]);
         newCount++;
       } else {
-        // Actualizar existente a in_document = true si no lo estaba
         if (!existing.in_document) {
           await supabase
             .from('references')
@@ -1177,13 +1056,10 @@ export class App {
     console.log(`✅ ${allReferences.size} referencias encontradas, ${newCount} nuevas agregadas`);
   }
 
-  // Extraer referencias sugeridas por el agente de Citas
-  static async extractAgentCitations(agentResponse) { // Añadir async
+  static async extractAgentCitations(agentResponse) {
     console.log('🤖 Extrayendo sugerencias del agente de Citas');
 
     const references = [];
-
-    // Buscar tablas markdown
     const tableRowPattern = /\|\s*\d+\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*([^|]+)\s*\|\s*([^|]*)\s*\|/g;
 
     let match;
@@ -1207,7 +1083,6 @@ export class App {
       }
     }
 
-    // Buscar referencias en formato de lista
     const listPattern = /([A-ZÁ-Ú][a-zá-ú]+(?:\s+[A-ZÁ-Ú][a-zá-ú]+)*(?:,\s+[A-Z]\.)*(?:,?\s+&\s+[A-ZÁ-Ú][a-zá-ú]+)*)\s*\((\d{4})\)\s*([^.]+)\.\s*([^.]*)/g;
 
     while ((match = listPattern.exec(agentResponse)) !== null) {
@@ -1235,7 +1110,6 @@ export class App {
       return;
     }
 
-    // GUARDAR EN SUPABASE
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -1265,12 +1139,9 @@ export class App {
     console.log(`✅ ${references.length} referencias del agente, ${newCount} nuevas agregadas`);
   }
 
-  // Exportar bibliografía en formato APA (Desde Supabase)
   static async exportBibliography() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-
-    // 1. Obtener datos reales de Supabase
     const { data: saved, error } = await supabase
       .from('references')
       .select('*')
@@ -1281,18 +1152,15 @@ export class App {
       return;
     }
 
-    // 2. Generar texto en formato APA
     let apaText = '═══════════════════════════════════════════════════\n';
     apaText += '       BIBLIOGRAFÍA EN FORMATO APA 7\n';
     apaText += '       Generado por Asesor Tesis UPAO\n';
     apaText += '       Fecha: ' + new Date().toLocaleDateString('es-PE') + '\n';
     apaText += '═══════════════════════════════════════════════════\n\n';
 
-    // Ordenar por autor (A-Z)
     const sorted = saved.sort((a, b) => a.author.localeCompare(b.author));
 
     sorted.forEach((ref, index) => {
-      // Formato: Autor (Año). Título. Fuente. DOI/URL.
       apaText += `${index + 1}. ${ref.author} (${ref.year}). ${ref.title}.`;
       if (ref.source) apaText += ` ${ref.source}.`;
       if (ref.doi_link) apaText += ` ${ref.doi_link}`;
@@ -1301,10 +1169,9 @@ export class App {
 
     apaText += '\n═══════════════════════════════════════════════════\n';
     apaText += `Total de referencias: ${saved.length}\n`;
-    apaText += `Referencias usadas en documento: ${saved.filter(r => r.in_document).length}\n`; // Nota: in_document (snake_case)
-    apaText += `Referencias sugeridas por agente: ${saved.filter(r => r.from_agent).length}\n`; // Nota: from_agent (snake_case)
+    apaText += `Referencias usadas en documento: ${saved.filter(r => r.in_document).length}\n`;
+    apaText += `Referencias sugeridas por agente: ${saved.filter(r => r.from_agent).length}\n`;
 
-    // 3. Crear y descargar archivo
     const blob = new Blob([apaText], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -1318,7 +1185,6 @@ export class App {
     this.showToast('Bibliografía exportada correctamente', 'success');
   }
 
-  // Inicializar login
   static initLogin() {
     const form = document.getElementById('login-form');
     const errorDiv = document.getElementById('error-message');
@@ -1330,31 +1196,27 @@ export class App {
     const submitBtnText = document.getElementById('submit-text');
     const confirmPassContainer = document.getElementById('confirm-password-container');
 
-    // === NUEVOS ELEMENTOS ===
     const formTitle = document.getElementById('form-title');
     const rememberMeContainer = document.getElementById('remember-me-container');
     if (!form) return;
     let isRegistering = false;
-    // Toggle entre Login y Registro
     if (toggleBtn) {
       toggleBtn.addEventListener('click', (e) => {
         e.preventDefault();
         isRegistering = !isRegistering;
         if (isRegistering) {
-          // MODO REGISTRO
           confirmPassContainer.classList.remove('hidden');
-          if (formTitle) formTitle.textContent = 'Crear Cuenta'; // Cambiar título
-          if (rememberMeContainer) rememberMeContainer.classList.add('hidden'); // Ocultar Recordarme
+          if (formTitle) formTitle.textContent = 'Crear Cuenta';
+          if (rememberMeContainer) rememberMeContainer.classList.add('hidden');
 
           submitBtnText.textContent = 'Registrarse';
           toggleText.textContent = '¿Ya tienes cuenta?';
           toggleBtn.textContent = 'Inicia sesión aquí';
           document.getElementById('confirm-password').required = true;
         } else {
-          // MODO LOGIN
           confirmPassContainer.classList.add('hidden');
-          if (formTitle) formTitle.textContent = 'Iniciar Sesión'; // Restaurar título
-          if (rememberMeContainer) rememberMeContainer.classList.remove('hidden'); // Mostrar Recordarme
+          if (formTitle) formTitle.textContent = 'Iniciar Sesión';
+          if (rememberMeContainer) rememberMeContainer.classList.remove('hidden');
           submitBtnText.textContent = 'Iniciar Sesión';
           toggleText.textContent = '¿No tienes cuenta?';
           toggleBtn.textContent = 'Regístrate aquí';
@@ -1371,26 +1233,23 @@ export class App {
       const email = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value;
       if (isRegistering) {
-        // 1. Validar Email Nulo
         if (!email) {
           errorDiv.classList.remove('hidden');
           errorText.textContent = 'Ingrese un correo válido';
           return;
         }
-        // 2. Validar Formato Email
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
           errorDiv.classList.remove('hidden');
           errorText.textContent = 'Correo inválido';
           return;
         }
-        // 3. Validar Dominio UPAO (Requisito Crítico)
         if (!email.endsWith('@upao.edu.pe')) {
           errorDiv.classList.remove('hidden');
           errorText.textContent = 'Debe usar correo institucional @upao.edu.pe';
           return;
         }
-        // 4. Validar Contraseña Nula
+
         if (!password) {
           errorDiv.classList.remove('hidden');
           errorText.textContent = 'Ingrese una contraseña';
@@ -1398,13 +1257,10 @@ export class App {
         }
         const confirmPass = document.getElementById('confirm-password').value;
 
-        // === VALIDACIÓN DE CONTRASEÑA SEGURA ===
-        // Exige: Min 8, 1 Mayúscula, 1 Minúscula, 1 Número Y 1 Especial
         const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
 
         if (!passwordRegex.test(password)) {
           errorDiv.classList.remove('hidden');
-          // El mensaje ahora sí coincide con la realidad
           errorText.textContent = 'La contraseña debe tener: 8 caracteres, mayúscula, minúscula, número y símbolo.';
           return;
         }
@@ -1419,41 +1275,36 @@ export class App {
 
           setTimeout(() => {
             isRegistering = false;
-            toggleBtn.click(); // Volver a modo login
+            toggleBtn.click();
           }, 2000);
         } else {
           errorDiv.classList.remove('hidden');
           errorText.textContent = 'Error al registrarse. Intenta con otro correo.';
         }
       } else {
-        // LOGIN
-        // 1. Validar Email Nulo
         if (!email) {
           errorDiv.classList.remove('hidden');
           errorText.textContent = 'Ingrese un correo válido';
           return;
         }
-        // 2. Validar Formato Email
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
           errorDiv.classList.remove('hidden');
           errorText.textContent = 'Correo inválido';
           return;
         }
-        // 3. Validar Dominio UPAO
         if (!email.endsWith('@upao.edu.pe')) {
           errorDiv.classList.remove('hidden');
           errorText.textContent = 'Use correo institucional @upao.edu.pe';
           return;
         }
-        // 4. Validar Contraseña Nula
+
         if (!password) {
           errorDiv.classList.remove('hidden');
           errorText.textContent = 'Ingrese una contraseña';
           return;
         }
 
-        // Si pasa todo, intentamos Login
         if (await this.handleLogin(email, password)) {
           window.location.href = 'revision.html';
         } else {
@@ -1464,7 +1315,7 @@ export class App {
     });
   }
 
-  // Validar credenciales (Login)
+
   static async handleLogin(email, password) {
     const rememberMe = document.getElementById('remember-me').checked;
 
@@ -1478,14 +1329,7 @@ export class App {
       return false;
     }
 
-    // === MAGIA DE RECORDARME ===
     if (rememberMe && data.session) {
-      // Si quiere ser recordado, copiamos el token a localStorage
-      // Supabase usa una clave específica tipo 'sb-<project_ref>-auth-token'
-      // Pero gracias a nuestro HybridStorage, solo necesitamos saber la clave interna.
-      // Como es difícil saber la clave exacta del proyecto dinámicamente,
-      // haremos un truco: iterar sessionStorage y copiar todo lo que parezca de Supabase.
-
       Object.keys(window.sessionStorage).forEach(key => {
         if (key.startsWith('sb-')) {
           const val = window.sessionStorage.getItem(key);
@@ -1496,7 +1340,7 @@ export class App {
 
     return true;
   }
-  // Registrar usuario
+
   static async handleRegister(email, password) {
     const { data, error } = await supabase.auth.signUp({
       email: email,
@@ -1510,15 +1354,14 @@ export class App {
     console.log('✅ Registro exitoso:', data);
     return true;
   }
-  // Verificar si el usuario está autenticado
+
   static async checkAuth() {
     const { data: { session } } = await supabase.auth.getSession();
     return !!session;
   }
 
-  // Cerrar sesión
-  static async logout() { // <--- AÑADIR async
-    await supabase.auth.signOut(); // <--- AÑADIR ESTO
+  static async logout() {
+    await supabase.auth.signOut();
 
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('username');
@@ -1531,7 +1374,6 @@ export class App {
     window.location.href = 'index.html';
   }
 
-  // NUEVO: Renderizar lista (Con botones Editar e Insertar)
   static renderReferences(refs, container, isUsed) {
     if (refs.length === 0) {
       const emptyMessage = isUsed
@@ -1565,7 +1407,6 @@ export class App {
           </div>
         </div>`).join('');
 
-    // Listeners para botones
     container.querySelectorAll('.delete-ref-btn').forEach(btn => {
       btn.addEventListener('click', () => this.deleteReference(btn.dataset.deleteId));
     });
@@ -1577,31 +1418,25 @@ export class App {
     });
   }
 
-  // NUEVO: Generar Informe PDF Mejorado
   static initPDFGeneration() {
     const pdfBtn = document.getElementById('generate-pdf');
     if (!pdfBtn) return;
 
     pdfBtn.addEventListener('click', async () => {
-      // 1. Bloquear botón
       pdfBtn.disabled = true;
-      const originalText = pdfBtn.innerHTML; // Guardamos el texto original
+      const originalText = pdfBtn.innerHTML;
       pdfBtn.innerHTML = '<span class="material-icons">hourglass_empty</span> Generando...';
 
       try {
-        // === RECOPILAR DATOS ===
         const editor = document.getElementById('thesis-editor');
-        const docText = editor.innerText; // Texto plano para conteo
-        const docHtml = editor.innerHTML; // HTML para formato
+        const docText = editor.innerText;
+        const docHtml = editor.innerHTML;
         const docName = document.getElementById('doc-name').value;
 
-        // VALIDACIÓN: Documento vacío
         if (!docText || docText.trim().length < 50) {
           this.showToast('El documento es muy corto para generar un informe.', 'warning');
-          throw new Error('Documento vacío o muy corto'); // Esto saltará al catch y desbloqueará el botón
+          throw new Error('Documento vacío o muy corto');
         }
-
-        // Obtener bibliografía desde Supabase
         const { data: { user } } = await supabase.auth.getUser();
         let bibliografia = [];
         if (user) {
@@ -1609,7 +1444,6 @@ export class App {
           if (data) bibliografia = data;
         }
 
-        // Capturar análisis del chat
         const chatContainer = document.querySelector('.flex-1.space-y-4');
         const accordionContainers = Array.from(chatContainer.querySelectorAll('.bg-gray-100.dark\\:bg-gray-800.rounded-xl'));
 
@@ -1621,7 +1455,6 @@ export class App {
           return { title: title, content: content };
         }).filter(block => block.content.trim() !== '');
 
-        // === CREAR CONTENIDO HTML PARA PDF ===
         const reportHTML = `
           <div style="font-family: 'Helvetica', 'Arial', sans-serif; padding: 40px; color: #333; line-height: 1.6;">
             <!-- PORTADA -->
@@ -1672,7 +1505,6 @@ export class App {
           </div>
         `;
 
-        // === GENERAR PDF ===
         const opt = {
           margin: [1, 1, 1, 1],
           filename: `Informe_AsesorIA_${docName.replace(/[^a-z0-9]/gi, '_')}.pdf`,
@@ -1689,14 +1521,12 @@ export class App {
         console.error('Error PDF:', error);
         this.showToast('Error al generar PDF', 'error');
       } finally {
-        // 2. Desbloquear SIEMPRE (incluso si falla)
         pdfBtn.disabled = false;
         pdfBtn.innerHTML = originalText;
       }
     });
   }
 
-  // Helper de seguridad para evitar ataques XSS
   static escapeHtml(text) {
     if (!text) return '';
     return text

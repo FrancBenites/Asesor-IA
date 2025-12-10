@@ -15,9 +15,7 @@
 
 <body
     class="bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 min-h-screen flex items-center justify-center">
-    <!-- Login Container -->
     <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md">
-        <!-- Logo y Título -->
         <div class="text-center mb-8">
             <div
                 class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full mb-4">
@@ -26,11 +24,9 @@
             <h1 class="text-3xl font-bold text-gray-800 dark:text-white">Asesor Tesis UPAO</h1>
             <p class="text-gray-600 dark:text-gray-300 mt-2">Asistente Inteligente para tu Tesis</p>
         </div>
-        <!-- Formulario de Login -->
         <form id="login-form" class="space-y-6">
             <h2 id="form-title" class="text-2xl font-semibold text-center text-gray-800 dark:text-white mb-2">Iniciar
                 Sesión</h2>
-            <!-- Correo Electrónico -->
             <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     <span class="material-icons text-sm align-middle">email</span> Correo Electrónico
@@ -39,7 +35,6 @@
                     class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="ejemplo@upao.edu.pe" />
             </div>
-            <!-- Contraseña -->
             <div>
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     <span class="material-icons text-sm align-middle">lock</span> Contraseña
@@ -48,7 +43,6 @@
                     class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Mínimo 8 caracteres" />
             </div>
-            <!-- Confirmar Contraseña (Oculto por defecto) -->
             <div id="confirm-password-container" class="hidden">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     <span class="material-icons text-sm align-middle">lock_reset</span> Confirmar Contraseña
@@ -62,7 +56,6 @@
                     minúscula y un carácter especial.
                 </p>
             </div>
-            <!-- Recordarme -->
             <div id="remember-me-container" class="flex items-center justify-between">
                 <div class="flex items-center">
                     <input type="checkbox" id="remember-me"
@@ -72,26 +65,22 @@
                     </label>
                 </div>
             </div>
-            <!-- Mensaje de Error -->
             <div id="error-message"
                 class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-sm">
                 <span class="material-icons text-sm align-middle">error</span>
                 <span id="error-text"></span>
             </div>
-            <!-- Mensaje de Éxito -->
             <div id="success-message"
                 class="hidden bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg text-sm">
                 <span class="material-icons text-sm align-middle">check_circle</span>
                 <span id="success-text"></span>
             </div>
-            <!-- Botón de Acción -->
             <button type="submit" id="submit-btn"
                 class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg flex items-center justify-center gap-2">
                 <span class="material-icons">login</span>
                 <span id="submit-text">Iniciar Sesión</span>
             </button>
         </form>
-        <!-- Footer / Toggle -->
         <div class="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
             <p id="toggle-text">¿No tienes cuenta?</p>
             <button id="toggle-auth"
